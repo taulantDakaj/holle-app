@@ -32,3 +32,8 @@ select[multiple]{background:var(--bg)}
 .bigdots .dots{gap:6px}
 .bigdots .dots i{width:24px;height:24px;border-width:2px}
 b.ok{color:var(--ok)}
+.carddlg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30;display:grid;place-items:center;padding:14px}
+.cardbox{background:var(--surface);border-radius:12px;padding:16px;width:100%;max-width:440px;max-height:96vh;overflow:auto}
+.cardbox h3{margin:0 0 10px;font:800 1.2rem var(--display);text-transform:uppercase}
+.cardbox img{width:100%;border-radius:10px;display:block;background:#eee;aspect-ratio:4/5}
+.btn.wa[hidden]{display:none!important}

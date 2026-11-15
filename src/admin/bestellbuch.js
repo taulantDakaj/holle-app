@@ -906,7 +906,7 @@ function renderKundeDetail(){
     <div class="khead"><div><h2>${esc(k.name)}</h2><div class="sub">${esc(k.telefon)}${k.wohnort?" · "+esc(k.wohnort):""}</div></div>
       <button class="btn ghost" type="button" id="k-close">Schließen</button></div>
     <div class="btns">${wa?`<a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost" href="tel:${esc(k.telefon.replace(/\s/g,""))}">Anrufen</a>`:""}
-      <button class="btn ghost" type="button" id="k-neu">Neue Bestellung</button></div>
+      <button class="btn ghost" type="button" id="k-neu">Neue Bestellung</button>${k.info.karte&&!k.info.gewerbe?'<button class="btn" type="button" id="k-bild">🖼 Stempelkarte als Bild</button>':""}</div>
     <div class="section-h">Stempelkarte</div>
     ${k.info.gewerbe?`<p>Als <b>Gewerbe / Mobilstall</b> markiert – keine Stempelkarte.</p><button class="btn ghost" type="button" id="k-gew0">Doch Privatkunde</button>`:
       k.info.karte?`<div class="bigdots">${stempelDots(k)}</div>
@@ -927,6 +927,71 @@ function renderKundeDetail(){
   on("#k-gew",()=>saveKunde(k.key,{gewerbe:true,name:k.name}));
   on("#k-gew0",()=>saveKunde(k.key,{gewerbe:false}));
   on("#k-einl",()=>confirm("Gratis-Huhn als eingelöst eintragen?")&&saveKunde(k.key,{eingeloest:(+k.info.eingeloest||0)+1}));
+  on("#k-bild",()=>openCard(k));
   on("#k-neu",()=>{resetForm();$("#f-kunde").value=k.name;$("#f-tel").value=k.telefon;$("#f-wohnort").value=k.wohnort;showTab("neu");window.scrollTo({top:0,behavior:"smooth"})});
 }
 ["#k-q","#k-f"].forEach(s=>$(s).addEventListener("input",renderKunden));
+
+
+/* ---------- Stempelkarte als Bild (Design aus dem Holle-Cockpit) ---------- */
+const LOGO=new Image();const LOGO_READY=new Promise((r,j)=>{LOGO.onload=r;LOGO.onerror=j});LOGO.src="./logo.png";
+function rr(x,c,y,w,h,r){x.beginPath();x.moveTo(c+r,y);x.arcTo(c+w,y,c+w,y+h,r);x.arcTo(c+w,y+h,c,y+h,r);x.arcTo(c,y+h,c,y,r);x.arcTo(c,y,c+w,y,r);x.closePath()}
+function naechsterTermin(ort){
+  if(!ort) return null;
+  const h=iso(new Date());
+  return fahrten.filter(f=>f.aktiv&&f.datum>=h&&(!f.nur_orte||!f.nur_orte.length||f.nur_orte.includes(ort))&&(tourById(f.tour)?.stops||[]).some(s=>s[1]===ort))
+    .sort((a,b)=>a.datum.localeCompare(b.datum))[0]||null;
+}
+async function drawCard(k){
+  try{await Promise.all([document.fonts.load('800 80px Outfit'),document.fonts.load('600 40px Outfit'),document.fonts.load('400 34px Outfit')])}catch(e){}
+  const ZIEL=10, PRAEMIE="1 Huhn nach Wahl (bis 30 €)", REGEL="1 Rassehenne = 1 Stempel · 2 Hybridhennen = 1 Stempel";
+  const W=1080,H=1350,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+  const voll=k.frei>0, s=voll?ZIEL:k.rest;
+  x.fillStyle="#faf7f5";x.fillRect(0,0,W,H);
+  const g=x.createLinearGradient(0,0,W,420);g.addColorStop(0,"#5e0810");g.addColorStop(1,"#b3121f");x.fillStyle=g;x.fillRect(0,0,W,430);
+  x.fillStyle="#fff";x.beginPath();x.arc(W-120,110,66,0,7);x.fill();try{await LOGO_READY;x.save();x.beginPath();x.arc(W-120,110,62,0,7);x.clip();x.drawImage(LOGO,W-182,48,124,124);x.restore();}catch(e){}
+  x.textAlign="left";x.textBaseline="alphabetic";
+  x.fillStyle="rgba(255,255,255,.8)";x.font="600 34px Outfit";x.fillText("GEFLÜGELVERKAUF HOLLE",70,120);
+  let fs=96;x.font="800 "+fs+"px Outfit";while(fs>60&&x.measureText("Deine Stempelkarte").width>W-140){fs-=4;x.font="800 "+fs+"px Outfit"}
+  x.fillStyle="#fff";x.fillText("Deine ",70,250);const wd=x.measureText("Deine ").width;x.fillStyle="#ff8a92";x.fillText("Stempelkarte",70+wd,250);
+  x.fillStyle="#ff8a92";x.fillRect(70,282,190,10);
+  x.fillStyle="rgba(255,255,255,.92)";x.font="400 38px Outfit";x.fillText(String(k.name||"").slice(0,34),70,365);
+  const n=ZIEL,cols=5,rows=2,gap=24,size=Math.min(150,Math.floor((W-140-(cols-1)*gap)/cols));
+  const gw=cols*size+(cols-1)*gap,gx=(W-gw)/2,gy=500;
+  x.fillStyle="#fff";rr(x,gx-40,gy-40,gw+80,rows*size+(rows-1)*gap+80,36);x.fill();x.strokeStyle="#e9e2df";x.lineWidth=3;x.stroke();
+  for(let i=0;i<n;i++){const cx=gx+(i%cols)*(size+gap)+size/2,cy=gy+Math.floor(i/cols)*(size+gap)+size/2;
+    x.beginPath();x.arc(cx,cy,size/2-4,0,7);
+    if(i<s){x.fillStyle="#b3121f";x.fill();x.font=Math.round(size*.52)+"px sans-serif";x.textAlign="center";x.textBaseline="middle";x.fillText("🐔",cx,cy+4)}
+    else{x.setLineDash([10,9]);x.strokeStyle="#d6cbc8";x.lineWidth=4;x.stroke();x.setLineDash([]);if(i===n-1){x.fillStyle="#b3121f";x.font="800 "+Math.round(size*.2)+"px Outfit";x.textAlign="center";x.textBaseline="middle";x.fillText("GRATIS",cx,cy)}}
+  }
+  x.textAlign="left";x.textBaseline="alphabetic";
+  let y=gy+rows*size+(rows-1)*gap+120;
+  x.fillStyle="#1d1a19";x.font="800 64px Outfit";x.fillText(s+" von "+n+" Stempeln",70,y);
+  y+=62;x.font="600 40px Outfit";x.fillStyle=voll?"#1f7a3f":"#b3121f";x.fillText(voll?"🎉 Prämie fällig: "+PRAEMIE:"Noch "+(n-s)+" bis "+PRAEMIE,70,y);
+  y+=50;x.fillStyle="#6f6866";x.font="400 30px Outfit";x.fillText(REGEL,70,y);y+=40;x.fillText("Nur für Privatkunden · keine Barauszahlung",70,y);
+  const ort=(k.orders.find(o=>o.tour!=="R"&&o.ort&&o.ort!==HOME)||{}).ort;
+  const t=naechsterTermin(ort);
+  if(t){y+=56;x.fillStyle="#1d1a19";x.font="600 34px Outfit";x.fillText("📍 Nächster Termin in "+ort+": "+dShort(t.datum),70,y)}
+  x.fillStyle="#b3121f";x.fillRect(0,H-110,W,110);x.fillStyle="#fff";x.font="600 34px Outfit";x.textAlign="center";x.fillText("Geflügelverkauf Holle · @gefluegelholle · 0157 80267793",W/2,H-44);
+  return new Promise(r=>cv.toBlob(b=>r(b),"image/png"));
+}
+let cardFile=null;
+async function openCard(k){
+  const d=$("#cardDlg");$("#cardImg").removeAttribute("src");d.hidden=false;
+  const blob=await drawCard(k);
+  cardFile=new File([blob],"Holle-Stempelkarte-"+String(k.name||"Kunde").replace(/[^\wäöüÄÖÜß-]+/g,"-")+".png",{type:"image/png"});
+  $("#cardImg").src=URL.createObjectURL(blob);
+  const a=$("#cardWa"), nr=waNum(k.telefon);
+  if(nr){a.href="https://wa.me/"+nr;a.hidden=false}else a.hidden=true;
+  const canShare=!!(navigator.canShare&&navigator.canShare({files:[cardFile]}));
+  $("#cardShare").textContent=canShare?"Teilen":"Bild speichern";
+}
+$("#cardClose").onclick=()=>{$("#cardDlg").hidden=true};
+$("#cardShare").onclick=async()=>{
+  if(!cardFile) return;
+  if(navigator.canShare&&navigator.canShare({files:[cardFile]})){
+    try{await navigator.share({files:[cardFile]})}catch(e){if(e.name!=="AbortError")toast("Teilen nicht möglich – Bild lange drücken")}
+  } else {
+    const a=document.createElement("a");a.href=URL.createObjectURL(cardFile);a.download=cardFile.name;document.body.appendChild(a);a.click();a.remove();
+  }
+};

@@ -11,7 +11,7 @@
 <link rel="manifest" href="./admin.webmanifest">
 <title>Holle Bestellbuch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap">
 </head>
 <body>
 <div id="login" class="gate" hidden>
@@ -255,6 +255,16 @@
 <datalist id="dl-tiere"></datalist>
 <datalist id="dl-kunden"></datalist>
 <div id="toast" class="toast" hidden></div>
+<div id="cardDlg" class="carddlg" hidden><div class="cardbox">
+  <h3>Stempelkarte als Bild</h3>
+  <img id="cardImg" alt="Stempelkarte">
+  <p class="hint" id="cardHint">„Teilen“ antippen und WhatsApp mit dem Kunden auswählen. Alternativ das Bild lange drücken und sichern.</p>
+  <div class="actions" style="margin-top:8px">
+    <button class="btn" type="button" id="cardShare">Teilen</button>
+    <a class="btn wa" id="cardWa" target="_blank" rel="noopener">WhatsApp-Chat öffnen</a>
+    <button class="btn ghost" type="button" id="cardClose">Schließen</button>
+  </div>
+</div></div>
 
 
 </div>
