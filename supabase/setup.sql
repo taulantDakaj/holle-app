@@ -297,70 +297,87 @@ on conflict (name) do update set
   price_note = excluded.price_note, sort = excluded.sort;
 
 -- =====================================================================
--- Haltepunkte und Fahrten (nur beim ersten Ausführen)
+-- Haltepunkte und Fahrten (Fahrplan laut Webseite, Stand November 2026)
+-- Kann erneut ausgeführt werden: Haltepunkte werden aktualisiert, Fahrten ohne
+-- Bestellungen werden neu aufgebaut, Fahrten mit Bestellungen bleiben erhalten.
 -- =====================================================================
-create or replace function _seed_trip(d date, n text, stop_names text[]) returns void
+create unique index if not exists stops_name_key on stops(name);
+
+insert into stops (name, region, address, note, sort) values
+  ('Diemelstadt','Nordhessen/Eichsfeld/Thüringen','SVG Rastplatz A44',null,10),
+  ('Burghasungen','Nordhessen/Eichsfeld/Thüringen','Pendlerparkplatz A44',null,11),
+  ('Lohfelden','Nordhessen/Eichsfeld/Thüringen','Autohof Lohfeldener Rüssel','nur auf Bestellung, Uhrzeit nach Absprache',12),
+  ('Dramfeld','Nordhessen/Eichsfeld/Thüringen','Hauptstraße 59, Rosdorf',null,13),
+  ('Teistungen','Nordhessen/Eichsfeld/Thüringen','Gemeindehaus Parkplatz',null,14),
+  ('Worbis','Nordhessen/Eichsfeld/Thüringen','Leinefelde-Worbis, Honsel Tankstelle',null,15),
+  ('Nordhausen','Nordhessen/Eichsfeld/Thüringen','Scheunenhof, Sundhausen',null,16),
+  ('Dingelstädt','Nordhessen/Eichsfeld/Thüringen','Am Schützenplatz',null,17),
+  ('Groß Bartloff','Nordhessen/Eichsfeld/Thüringen','Edeka',null,18),
+  ('Geismar','Nordhessen/Eichsfeld/Thüringen','Am Anger',null,19),
+  ('Eschwege','Werra-Meißner','Sandrocks Tiernahrung, Friedhofsweg 17',null,20),
+  ('Hemeringen','Hameln/Alfeld/Hildesheim','Falcova GmbH',null,30),
+  ('Hameln','Hameln/Alfeld/Hildesheim','Hastenbecker Weg 82',null,31),
+  ('Coppenbrügge','Hameln/Alfeld/Hildesheim','Bahnhof / Küchentreff',null,32),
+  ('Hemmendorf','Hameln/Alfeld/Hildesheim','Marktplatz 3',null,33),
+  ('Burgstemmen','Hameln/Alfeld/Hildesheim','Neuer Weg 1-3',null,34),
+  ('Eldagsen','Hameln/Alfeld/Hildesheim','Raiffeisenmarkt',null,35),
+  ('Alfeld','Hameln/Alfeld/Hildesheim','Zooparadies Kempf',null,36),
+  ('Hildesheim','Hameln/Alfeld/Hildesheim','MTG Fleige, Frankenstr. 2',null,37),
+  ('Holle','Hameln/Alfeld/Hildesheim','Am Mohldberg 1',null,38),
+  ('Steinlah','Hameln/Alfeld/Hildesheim','Gebrüder Kassel Mühle',null,39),
+  ('Vechelde','Hameln/Alfeld/Hildesheim','Raiffeisenmarkt',null,40),
+  ('Groß Lafferde','Hameln/Alfeld/Hildesheim','Zum Marktplatz (Marktstr. 50)',null,41),
+  ('Schellerten','Hameln/Alfeld/Hildesheim','Edeka / Bushaltestelle',null,42),
+  ('Warburg','Warburg/Gudensberg/Eschwege','Raiffeisen Markt',null,50),
+  ('Gudensberg','Warburg/Gudensberg/Eschwege','Fritzlarer Str. 43',null,51),
+  ('Hessisch Lichtenau','Warburg/Gudensberg/Eschwege','OnOvO Tierbedarf, Am Hambacher Weg 4',null,52),
+  ('Waldkappel','Warburg/Gudensberg/Eschwege','Rewe Einfahrt',null,53),
+  ('Beverungen','OnOvO-Tour','Stadtmühle onOvo',null,60),
+  ('Hann. Münden','OnOvO-Tour','Farmerstore onOvo',null,61),
+  ('Rosdorf','OnOvO-Tour','Farmerstore onOvo',null,62),
+  ('Stockelsdorf','neu ab 2027',null,null,70),
+  ('Rosengarten','neu ab 2027',null,null,71),
+  ('Bispingen','neu ab 2027',null,null,72)
+on conflict (name) do update set
+  region = excluded.region, address = excluded.address,
+  note = coalesce(excluded.note, stops.note), sort = excluded.sort;
+
+delete from trips t
+where not exists (select 1 from orders o join trip_stops ts on ts.id = o.trip_stop_id where ts.trip_id = t.id);
+
+create or replace function _seed_trip(d date, n text, stop_names text[], times text[]) returns void
 language plpgsql as $$
 declare tid bigint; i int;
 begin
+  if exists (select 1 from trips where trip_date = d and name = n) then return; end if;
   insert into trips (trip_date, name) values (d, n) returning id into tid;
   for i in 1 .. array_length(stop_names,1) loop
-    insert into trip_stops (trip_id, stop_id, sort)
-    select tid, id, i from stops where name = stop_names[i];
+    insert into trip_stops (trip_id, stop_id, stop_time, sort)
+    select tid, id, times[i], i from stops where name = stop_names[i];
   end loop;
 end $$;
 
 do $seed$
 declare d date;
 begin
-  if exists (select 1 from stops) then return; end if;
+  perform _seed_trip('2026-11-21', 'Wintertour (kleine Auswahl)', array['Gudensberg','Hessisch Lichtenau','Eschwege','Warburg'], array['09:30','11:00','13:00','14:30']);
 
-  insert into stops (name, region, address, note, sort) values
- ('Warburg','Warburg-Tour','Raiffeisen Markt',null,10),
- ('Beverungen','Warburg-Tour',null,null,11),
- ('Hann. Münden','Warburg-Tour','Farmerstore',null,12),
- ('Rosdorf','Warburg-Tour','Farmerstore',null,13),
- ('Gudensberg','Warburg-Tour','großer Parkplatz','Uhrzeit wechselt (09:30 oder 15:15)',14),
- ('Hessisch Lichtenau','Nordhessen','OnOvO Tierbedarf, Am Hambacher Weg 4',null,15),
- ('Waldkappel','Nordhessen','Rewe Einfahrt',null,16),
- ('Lohfelden','Eichsfeld-Tour','Autohof Lohfeldener Rüssel','nur auf Bestellung',20),
- ('Eschwege','Eichsfeld-Tour','Sandrocks Tiernahrung, Friedhofsweg 17',null,21),
- ('Nordhausen','Eichsfeld-Tour','Scheunenhof Sundhausen',null,22),
- ('Worbis','Eichsfeld-Tour',null,null,23),
- ('Hildesheim','Hildesheim-Tour','MTG Fleige, Parkplatz vorne',null,30),
- ('Vechelde','Hildesheim-Tour','Raiffeisen Markt',null,31),
- ('Hameln','Hildesheim-Tour',null,null,32),
- ('Hemmendorf','Hildesheim-Tour','Marktplatz 3',null,33),
- ('Coppenbrügge','Hildesheim-Tour','Bahnhof',null,34),
- ('Hemeringen','Hildesheim-Tour',null,null,35),
- ('Alfeld','Hildesheim-Tour','Angel & Zooparadies Alfeld',null,36),
- ('Eldagsen','Hildesheim-Tour','Raiffeisen-Markt-Parkplatz',null,37),
- ('Dramfeld','sonstige',null,null,40),
- ('Stockelsdorf','neu ab 2027',null,null,50),
- ('Rosengarten','neu ab 2027',null,null,51),
- ('Bispingen','neu ab 2027',null,null,52);
-
-  perform _seed_trip('2026-11-21','Nordhessen-Tour', array['Warburg','Gudensberg','Hessisch Lichtenau','Eschwege']);
+  foreach d in array array['2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24']::date[] loop
+    perform _seed_trip(d, 'Tour Nordhessen, Eichsfeld & Thüringen', array['Diemelstadt','Burghasungen','Lohfelden','Dramfeld','Teistungen','Worbis','Nordhausen','Dingelstädt','Groß Bartloff','Geismar','Eschwege'], array['06:00','06:15','ca. 06:40','07:15','08:15','09:00','10:00','11:15','12:00','12:15','13:00']);
+    perform _seed_trip(d, 'Tour Hameln, Alfeld & Hildesheim', array['Hemeringen','Hameln','Coppenbrügge','Hemmendorf','Burgstemmen','Eldagsen','Alfeld','Hildesheim','Holle','Steinlah','Vechelde','Groß Lafferde','Schellerten'], array['06:30','07:00','07:20','07:30','08:00','08:30','09:30','10:30','11:15','12:00','13:15','14:00','14:30']);
+  end loop;
 
   foreach d in array array['2027-03-06','2027-03-20','2027-04-17','2027-05-15','2027-06-19','2027-07-17','2027-08-21']::date[] loop
-    perform _seed_trip(d, 'Warburg-Tour', array['Warburg','Beverungen','Hann. Münden','Rosdorf','Gudensberg','Hessisch Lichtenau']);
+    perform _seed_trip(d, 'Tour Warburg, Gudensberg & Eschwege', array['Warburg','Gudensberg','Hessisch Lichtenau','Waldkappel','Eschwege'], array['08:00','09:30','11:00','12:15','13:00']);
+    perform _seed_trip(d, 'OnOvO-Tour', array['Beverungen','Hann. Münden','Rosdorf'], array['09:00','10:30','12:00']);
   end loop;
-  foreach d in array array['2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24']::date[] loop
-    perform _seed_trip(d, 'Eichsfeld/Nordhessen-Tour', array['Lohfelden','Eschwege','Nordhausen','Worbis','Hessisch Lichtenau']);
-    perform _seed_trip(d, 'Hildesheim/Hameln-Tour', array['Hildesheim','Vechelde','Hameln','Hemmendorf','Coppenbrügge','Hemeringen','Alfeld','Eldagsen']);
-  end loop;
-  -- Eschwege jeden Samstag (27.02.–30.10.2027), außer an Tagen der Eichsfeld-Tour
+
+  -- Eschwege jeden Samstag 13:00 (27.02.–30.10.2027), sofern nicht schon in einer Tour
   for d in select g::date from generate_series('2027-02-27'::date, '2027-10-30'::date, interval '7 days') g loop
-    if d not in ('2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24') then
-      perform _seed_trip(d, 'Eschwege', array['Eschwege']);
+    if d <> all (array['2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24','2027-03-06','2027-03-20','2027-04-17','2027-05-15','2027-06-19','2027-07-17','2027-08-21']::date[]) then
+      perform _seed_trip(d, 'Eschwege', array['Eschwege'], array['13:00']);
     end if;
   end loop;
-
-  update trip_stops ts set stop_time = '06:40' from stops s where s.id = ts.stop_id and s.name = 'Lohfelden';
-  update trip_stops ts set stop_time = '11:00' from stops s, trips t
-    where s.id = ts.stop_id and t.id = ts.trip_id and s.name = 'Hessisch Lichtenau' and t.name = 'Warburg-Tour';
-  update trip_stops ts set stop_time = '14:00' from stops s, trips t
-    where s.id = ts.stop_id and t.id = ts.trip_id and s.name = 'Hessisch Lichtenau' and t.name = 'Eichsfeld/Nordhessen-Tour';
 end $seed$;
 
-drop function _seed_trip(date, text, text[]);
+drop function _seed_trip(date, text, text[], text[]);
