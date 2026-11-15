@@ -137,7 +137,7 @@ export default function Shop() {
                   <select value={tripId} onChange={(e) => { setTripId(e.target.value); setTripStopId(''); }}>
                     <option value="">Bitte wählen …</option>
                     {data.trips.map((t) => (
-                      <option key={t.id} value={t.id}>{fmtDate(t.date)} – {t.stops.map((s) => s.name).join(', ')}</option>
+                      <option key={t.id} value={t.id}>{fmtDate(t.date)} – {t.name}</option>
                     ))}
                   </select>
                 </label>
