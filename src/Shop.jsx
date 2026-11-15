@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, fmtDate, fmtPrice, todayISO, groupBy, SHOP_PHONE, SHOP_WA, DATENSCHUTZ_URL } from './lib.js';
-import { TOURS } from './tours.js';
+import { TOURS, ORT_KOORD } from './tours.js';
+
+let plzCache = null;
+async function plzKoord(plz) {
+  if (!plzCache) plzCache = await fetch('./plz.json').then((r) => r.json());
+  return plzCache[plz] || null;
+}
+function kmZwischen(a, b) {
+  const R = 6371, rad = (x) => (x * Math.PI) / 180;
+  const dLat = rad(b[0] - a[0]), dLng = rad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h)) * 1.25; // grob Straßen-km
+}
 
 /** Alle Abhol-Möglichkeiten aus den Fahrten: {ort, datum, tour, zeit, hinweis} */
 function termineAus(fahrten) {
@@ -144,6 +156,11 @@ export default function Shop() {
 
           <section className="card">
             <h2><span className="num">2</span> Abholung</h2>
+            <PlzFinder termine={termine} onPick={(r) => {
+              if (r.ort === 'Rietberg Hof') { setPickupType('rietberg'); }
+              else { setPickupType('tour'); setOrt(r.ort); setTerminKey(r.next ? r.next.datum + r.next.tour : ''); }
+              if (!form.city) setForm((f) => ({ ...f, city: r.plz }));
+            }} />
             <div className="seg">
               <button type="button" className={pickupType === 'tour' ? 'on' : ''} onClick={() => setPickupType('tour')}>An einem Haltepunkt</button>
               <button type="button" className={pickupType === 'rietberg' ? 'on' : ''} onClick={() => setPickupType('rietberg')}>In Rietberg</button>
@@ -209,6 +226,56 @@ export default function Shop() {
         </form>
       )}
     </Page>
+  );
+}
+
+function PlzFinder({ termine, onPick }) {
+  const [plz, setPlz] = useState('');
+  const [res, setRes] = useState(null);
+  const [msg, setMsg] = useState('');
+  async function suche(e) {
+    e?.preventDefault();
+    setMsg(''); setRes(null);
+    if (!/^\d{5}$/.test(plz)) return setMsg('Bitte eine 5-stellige Postleitzahl eingeben.');
+    let k;
+    try { k = await plzKoord(plz); } catch { return setMsg('Suche gerade nicht möglich.'); }
+    if (!k) return setMsg('Diese Postleitzahl kennen wir nicht.');
+    const orte = [...new Set(termine.map((t) => t.ort))].filter((o) => ORT_KOORD[o]);
+    const list = orte.map((o) => ({
+      ort: o, km: Math.round(kmZwischen(k, ORT_KOORD[o])),
+      next: termine.filter((t) => t.ort === o).sort((a, b) => a.datum.localeCompare(b.datum))[0],
+    })).sort((a, b) => a.km - b.km).slice(0, 3);
+    const rb = { ort: 'Rietberg Hof', km: Math.round(kmZwischen(k, ORT_KOORD['Rietberg Hof'])) };
+    setRes({ list, rb, best: !list.length || rb.km <= list[0].km ? 'Rietberg Hof' : list[0].ort });
+  }
+  const pick = (r) => onPick({ ...r, plz });
+  return (
+    <div className="plzfinder">
+      <div className="plzrow">
+        <label>Abholort in deiner Nähe finden
+          <input inputMode="numeric" maxLength={5} placeholder="Deine PLZ, z. B. 37269" value={plz}
+            onChange={(e) => setPlz(e.target.value.replace(/\D/g, '').slice(0, 5))}
+            onKeyDown={(e) => e.key === 'Enter' && suche(e)} />
+        </label>
+        <button type="button" className="btn primary" onClick={suche}>Suchen</button>
+      </div>
+      {msg && <p className="hint">{msg}</p>}
+      {res && (
+        <div className="plzres">
+          {res.list.map((r) => (
+            <button type="button" key={r.ort} className={'plzhit' + (res.best === r.ort ? ' best' : '')} onClick={() => pick(r)}>
+              <span className="pn">{res.best === r.ort && <em>Am nächsten · </em>}{r.ort}</span>
+              <span className="pm">ca. {r.km} km{r.next ? ` · nächster Termin ${fmtDate(r.next.datum)}${r.next.zeit ? ', ' + r.next.zeit + ' Uhr' : ''}` : ''}</span>
+            </button>
+          ))}
+          <button type="button" className={'plzhit' + (res.best === 'Rietberg Hof' ? ' best' : '')} onClick={() => pick(res.rb)}>
+            <span className="pn">{res.best === 'Rietberg Hof' && <em>Am nächsten · </em>}Abholung in Rietberg ab Hof</span>
+            <span className="pm">ca. {res.rb.km} km · jeden Tag nach Absprache</span>
+          </button>
+          <p className="hint">Antippen zum Auswählen. Entfernungen sind ungefähre Straßen-km.</p>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -218,3 +218,14 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 }
 
 .thint { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }
+
+.plzfinder { background: #fdf3f1; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+.plzrow { display: flex; gap: 8px; align-items: flex-end; }
+.plzrow label { flex: 1; margin: 0; color: var(--ink); font-weight: 600; }
+.plzrow .btn { padding: 11px 14px; }
+.plzres { display: grid; gap: 6px; margin-top: 8px; }
+.plzhit { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 9px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.plzhit.best { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+.plzhit .pn { font-weight: 700; }
+.plzhit .pn em { font-style: normal; color: var(--red); }
+.plzhit .pm { font-size: .82rem; color: var(--muted); }
