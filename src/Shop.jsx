@@ -1,13 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, fmtDate, fmtPrice, todayISO, groupBy, SHOP_PHONE, SHOP_WA, DATENSCHUTZ_URL } from './lib.js';
+import { TOURS } from './tours.js';
+
+/** Alle Abhol-Möglichkeiten aus den Fahrten: {ort, datum, tour, zeit, hinweis} */
+function termineAus(fahrten) {
+  const out = [];
+  for (const f of fahrten || []) {
+    const t = TOURS.find((x) => x.id === f.tour);
+    if (!t) continue;
+    for (const [zeit, ort] of t.stops) {
+      if (f.nur_orte && f.nur_orte.length && !f.nur_orte.includes(ort)) continue;
+      out.push({ ort, datum: f.datum, tour: f.tour, zeit, hinweis: f.hinweis });
+    }
+  }
+  return out;
+}
 
 export default function Shop() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
   const [qty, setQty] = useState({});
   const [pickupType, setPickupType] = useState('tour');
-  const [tripId, setTripId] = useState('');
-  const [tripStopId, setTripStopId] = useState('');
+  const [ort, setOrt] = useState('');
+  const [terminKey, setTerminKey] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [form, setForm] = useState({ customer_name: '', phone: '', city: '', customer_note: '', website: '' });
   const [consent, setConsent] = useState(false);
@@ -25,7 +40,10 @@ export default function Shop() {
   }, []);
 
   const byCat = useMemo(() => groupBy(data?.products || [], (p) => p.category), [data]);
-  const trip = data?.trips?.find((t) => String(t.id) === String(tripId));
+  const termine = useMemo(() => termineAus(data?.fahrten), [data]);
+  const orte = useMemo(() => [...new Set(termine.map((t) => t.ort))].sort((a, b) => a.localeCompare(b, 'de')), [termine]);
+  const ortTermine = termine.filter((t) => t.ort === ort);
+  const termin = ortTermine.find((t) => t.datum + t.tour === terminKey);
   // Auswahl: Schlüssel "12" = Henne/Stück, "12h" = Hahn
   const chosen = [];
   for (const p of data?.products || []) {
@@ -43,29 +61,28 @@ export default function Shop() {
     setErr('');
     if (form.website) return; // Bot
     if (!chosen.length) return setErr('Bitte wähle mindestens ein Tier aus.');
-    if (pickupType === 'tour' && !tripStopId) return setErr('Bitte wähle Termin und Haltepunkt.');
+    if (pickupType === 'tour' && !termin) return setErr('Bitte wähle Haltepunkt und Termin.');
     if (pickupType === 'rietberg' && !pickupDate) return setErr('Bitte gib deinen Wunschtermin an.');
     if (!consent) return setErr('Bitte bestätige die Datenschutzhinweise.');
     setSending(true);
     const payload = {
-      customer_name: form.customer_name,
-      phone: form.phone,
-      city: form.city,
-      customer_note: form.customer_note,
-      pickup_type: pickupType,
-      trip_stop_id: pickupType === 'tour' ? tripStopId : null,
-      pickup_date: pickupType === 'rietberg' ? pickupDate : null,
+      kunde: form.customer_name,
+      telefon: form.phone,
+      wohnort: form.city,
+      bemerkung: form.customer_note,
+      datum: pickupType === 'tour' ? termin.datum : pickupDate,
+      tour: pickupType === 'tour' ? termin.tour : 'R',
+      ort: pickupType === 'tour' ? termin.ort : 'Rietberg Hof',
       items: chosen.map((c) => ({ product_id: c.p.id, qty: c.n, hahn: c.hahn })),
     };
     const { data: res, error } = await supabase.rpc('submit_order', { p: payload });
     setSending(false);
     if (error) return setErr(error.message || 'Bestellung konnte nicht gesendet werden.');
-    const stop = trip?.stops.find((s) => String(s.trip_stop_id) === String(tripStopId));
     setDone({
       ...res,
       summary: chosen.map((c) => `${c.n}× ${c.label}`).join('\n'),
       where: pickupType === 'tour'
-        ? `${stop?.name}, ${fmtDate(trip?.date)}${stop?.time ? ', ' + stop.time + ' Uhr' : ''}`
+        ? `${termin.ort}, ${fmtDate(termin.datum)}${termin.zeit ? ', ' + termin.zeit + ' Uhr' : ''}`
         : `Rietberg, Wunschtermin ${fmtDate(pickupDate)}`,
       name: form.customer_name,
     });
@@ -73,13 +90,13 @@ export default function Shop() {
   }
 
   if (done) {
-    const wa = `Hallo, ich habe gerade über die App bestellt (${done.order_no}):\n${done.summary}\nAbholung: ${done.where}\n${done.name}`;
+    const wa = `Hallo, ich habe gerade über die App bestellt (${done.nr}):\n${done.summary}\nAbholung: ${done.where}\n${done.name}`;
     return (
       <Page>
         <div className="card success">
           <div className="big">✓</div>
           <h2>Danke, deine Bestellung ist angekommen!</h2>
-          <p>Bestellnummer: <b>{done.order_no}</b></p>
+          <p>Bestellnummer: <b>{done.nr}</b></p>
           <pre className="summary">{done.summary}</pre>
           <p><b>Abholung:</b> {done.where}</p>
           <p>Wir melden uns per WhatsApp oder Telefon und bestätigen deine Bestellung. Bezahlt wird bei Abholung.</p>
@@ -133,24 +150,21 @@ export default function Shop() {
             </div>
             {pickupType === 'tour' ? (
               <>
-                <label>Termin
-                  <select value={tripId} onChange={(e) => { setTripId(e.target.value); setTripStopId(''); }}>
+                <label>Haltepunkt
+                  <select value={ort} onChange={(e) => { setOrt(e.target.value); setTerminKey(''); }}>
                     <option value="">Bitte wählen …</option>
-                    {data.trips.map((t) => (
-                      <option key={t.id} value={t.id}>{fmtDate(t.date)} – {t.name}</option>
-                    ))}
+                    {orte.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </label>
-                {data.trips.length === 0 && <p className="hint">Gerade sind keine Touren geplant. Wähle „In Rietberg“ oder schreib uns per WhatsApp.</p>}
-                {trip && (
+                {orte.length === 0 && <p className="hint">Gerade sind keine Touren geplant. Wähle „In Rietberg“ oder schreib uns per WhatsApp.</p>}
+                {ort && (
                   <div className="stops">
-                    {trip.stops.map((s) => (
-                      <label key={s.trip_stop_id} className={'radio' + (String(tripStopId) === String(s.trip_stop_id) ? ' on' : '')}>
-                        <input type="radio" name="stop" value={s.trip_stop_id}
-                          checked={String(tripStopId) === String(s.trip_stop_id)}
-                          onChange={(e) => setTripStopId(e.target.value)} />
-                        <span>{s.name}</span>
-                        <small>{s.time ? s.time + ' Uhr' : 'Uhrzeit folgt'}</small>
+                    {ortTermine.map((t) => (
+                      <label key={t.datum + t.tour} className={'radio' + (terminKey === t.datum + t.tour ? ' on' : '')}>
+                        <input type="radio" name="termin" checked={terminKey === t.datum + t.tour}
+                          onChange={() => setTerminKey(t.datum + t.tour)} />
+                        <span>{fmtDate(t.datum)}{t.hinweis && <small className="thint">{t.hinweis}</small>}</span>
+                        <small>{t.zeit ? t.zeit + ' Uhr' : 'Uhrzeit folgt'}</small>
                       </label>
                     ))}
                   </div>

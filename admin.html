@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f3a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Holle Bestellbuch">
+<link rel="icon" type="image/png" href="./favicon.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="manifest" href="./admin.webmanifest">
+<title>Holle Bestellbuch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+</head>
+<body>
+<div id="login" class="gate" hidden>
+  <form id="login-form" class="gatebox">
+    <img src="./logo.png" alt="">
+    <h1>Bestellbuch <span>Holle</span></h1>
+    <label>E-Mail<input type="email" id="login-email" autocomplete="username" required></label>
+    <label>Passwort<input type="password" id="login-pw" autocomplete="current-password" required></label>
+    <div id="login-err" class="gateerr" hidden>Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen.</div>
+    <button class="btn" id="login-btn">Anmelden</button>
+  </form>
+</div>
+<div id="noaccess" class="gate" hidden>
+  <div class="gatebox"><h1>Kein Zugriff</h1><p><b id="noaccess-mail"></b> ist noch nicht als Mitarbeiter freigeschaltet.</p></div>
+</div>
+<div id="app" hidden>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <img src="./logo.png" alt="" class="brandlogo">
+      <div>
+      <h1>Bestellbuch <span>Holle</span></h1>
+      <div class="sub">Geflügelverkauf Holle · Rietberg · Bestellungen für die Samstagstouren</div>
+    </div>
+    </div>
+    <div class="topright">
+      <div class="sub" id="syncState">Verbinde …</div>
+      <div class="sub"><span id="who"></span> · <a href="./" target="_blank">Kunden-Bestellseite</a> · <button type="button" class="linkbtn" id="logout">Abmelden</button></div>
+    </div>
+  </header>
+
+  <div id="banner"></div>
+  <div id="neuBox"></div>
+  <div id="reminder"></div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="neu" aria-selected="true">Bestellung aufnehmen</button>
+    <button role="tab" data-tab="liste" aria-selected="false">Bestellungen <span class="n" id="cnt">0</span></button>
+    <button role="tab" data-tab="bedarf" aria-selected="false">Tierbedarf</button>
+    <button role="tab" data-tab="bestell" aria-selected="false">Bestellliste</button>
+    <button role="tab" data-tab="lade" aria-selected="false">Ladeliste</button>
+    <button role="tab" data-tab="fahr" aria-selected="false">Fahrplan</button>
+    <button role="tab" data-tab="nach" aria-selected="false">Nachweisliste</button>
+    <button role="tab" data-tab="app" aria-selected="false">Kunden-App</button>
+  </nav>
+
+  <!-- AUFNEHMEN -->
+  <section id="tab-neu" class="panel">
+    <form id="form" autocomplete="off">
+      <div class="section-h" id="formTitle">Neue Bestellung</div>
+      <div class="grid">
+        <label>Kunde (Name)<input id="f-kunde" list="dl-kunden" required placeholder="z. B. Maria Becker"></label>
+        <label>Telefon / WhatsApp<input id="f-tel" inputmode="tel" placeholder="0151 …"></label>
+        <label>Wohnort<input id="f-wohnort" placeholder="optional"></label>
+      </div>
+
+      <div class="section-h">Tour und Abholort</div>
+      <div class="grid">
+        <label>Liefer-Samstag<input type="date" id="f-datum" required></label>
+        <label>Tour<select id="f-tour" required></select></label>
+        <label>Abholort<select id="f-ort" required></select></label>
+        <label id="adrWrap" hidden style="grid-column:1/-1">Lieferadresse (Straße, Hausnummer, PLZ, Ort)<input id="f-adresse" placeholder="z. B. Lindenweg 4, 37327 Leinefelde"></label>
+      </div>
+      <div class="rhythm" id="f-rhythm"></div>
+
+      <div class="section-h">Tiere</div>
+      <div id="posList"></div>
+      <button type="button" class="btn ghost" id="addPos">+ Weitere Tierart</button>
+
+      <div class="section-h">Sonstiges</div>
+      <div class="grid">
+        <label>Status<select id="f-status"><option value="neu">neu (Kunden-App, unbestätigt)</option><option value="offen">offen</option><option value="abgeholt">abgeholt</option><option value="storniert">storniert</option></select></label>
+        <label style="grid-column:1/-1">Bemerkung<textarea id="f-bem" placeholder="z. B. Karton mitbringen, ruft vorher an"></textarea></label>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit" id="saveBtn">Bestellung speichern</button>
+        <button class="btn ghost" type="button" id="resetBtn">Leeren</button>
+        <span id="delWrap"></span>
+        <span class="total" id="f-total"></span>
+      </div>
+    </form>
+  </section>
+
+  <!-- LISTE -->
+  <section id="tab-liste" class="panel" hidden>
+    <div class="seg" aria-label="Zeitraum">
+      <button type="button" id="l-akt" aria-pressed="true">Aktuelle Bestellungen <span class="n" id="l-n-akt"></span></button>
+      <button type="button" id="l-alt" aria-pressed="false">Vergangene Bestellungen <span class="n" id="l-n-alt"></span></button>
+    </div>
+    <div class="filters">
+      <label>Liefer-Samstag<select id="l-datum"></select></label>
+      <label>Tour<select id="l-tour"></select></label>
+      <label>Suche<input id="l-q" placeholder="Name, Ort, Tierart"></label>
+    </div>
+    <div class="tablewrap"><table class="list"><thead><tr>
+      <th>Datum</th><th>Tour · Abholort</th><th>Kunde</th><th>Tiere</th><th class="num">Stück</th><th class="num">Betrag</th><th>Status</th>
+    </tr></thead><tbody id="l-body"></tbody></table></div>
+    <div class="actions">
+      <button class="btn ghost" id="csvBtn" type="button">Als Excel-Liste (CSV) speichern</button>
+      <span class="total" id="l-sum"></span>
+    </div>
+    <div id="bspWrap"></div>
+  </section>
+
+  <!-- BEDARF -->
+  <section id="tab-bedarf" class="panel" hidden>
+    <div class="filters">
+      <label>Von (Datum)<input type="date" id="b-von"></label>
+      <label>Bis (Datum)<input type="date" id="b-bis"></label>
+      <label>Tierart (leer = alle)<input id="b-tier" list="dl-tiere" placeholder="z. B. Olivleger"></label>
+      <label>Zählen<select id="b-mode"><option value="offen">Noch benötigt (nur offene)</option><option value="alle">Alle bestellten (offen + abgeholt)</option></select></label>
+    </div>
+    <div class="quick" id="b-quick"></div>
+    <div class="kpis" id="b-kpis"></div>
+    <div class="tablewrap"><table class="list" id="b-table"></table></div>
+    <div id="b-detail"></div>
+    <div class="actions"><button class="btn ghost" id="b-csv" type="button">Übersicht als Excel-Liste (CSV) speichern</button></div>
+  </section>
+
+  <!-- BESTELLLISTE -->
+  <section id="tab-bestell" class="panel" hidden>
+    <div class="filters">
+      <label>Liefertermin von<input type="date" id="o-von"></label>
+      <label>bis<input type="date" id="o-bis"></label>
+      <label>Liste<select id="o-liste"><option value="">Beide Listen</option><option value="A">Hybriden, Wassergeflügel, Mast, Puten, Wachteln, Perlhühner</option><option value="B">Rassehühner</option></select></label>
+      <label>Zählen<select id="o-mode"><option value="offen">Nur offene Bestellungen</option><option value="alle">Offene + abgeholte</option></select></label>
+    </div>
+    <div class="quick" id="o-quick"></div>
+    <div class="actions" style="margin-top:0">
+      <button class="btn" id="o-print" type="button">Bestellliste zum Drucken speichern</button>
+      <button class="btn ghost" id="o-csv" type="button">Als Excel-Liste (CSV) speichern</button>
+    </div>
+    <div class="paper" id="o-paper"></div>
+  </section>
+
+  <!-- NACHWEIS -->
+  <section id="tab-nach" class="panel" hidden>
+    <div class="filters">
+      <label>Kopfzeile<select id="n-kopf"><option>Kreis Eichsfeld</option><option>Raum Hildesheim</option><option>onOvo Tour</option><option>Rietberg</option><option value="*">Alle vier (je eine Seite)</option></select></label>
+      <label>Zeilen pro Blatt<select id="n-zeilen"><option>15</option><option selected>20</option><option>25</option></select></label>
+    </div>
+    <div class="actions" style="margin-top:0">
+      <button class="btn" id="n-print" type="button">Nachweisliste als PDF speichern</button>
+      <span class="hint">Leeres Blatt zum Ausfüllen durch die Kunden: Name, Anschrift, Anzahl Tiere.</span>
+    </div>
+    <div class="paper" id="n-paper"></div>
+  </section>
+
+  <!-- FAHRPLAN -->
+  <section id="tab-fahr" class="panel" hidden>
+    <div class="filters">
+      <label>Liefertag<select id="f2-datum"></select></label>
+      <label>Tour<select id="f2-tour"></select></label>
+      <label style="flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:10px"><input type="checkbox" id="f2-leer" style="width:auto"> Orte ohne Kunden ausblenden (normalerweise aus lassen)</label>
+    </div>
+    <div class="actions" style="margin-top:0">
+      <button class="btn" id="f2-print" type="button">Fahrplan zum Drucken speichern</button>
+      <span class="hint">Für den Fahrer: Uhrzeit, Ort, Laden, Adresse fürs Navi und Anzahl Kunden. Jede Tour auf eigener Seite.</span>
+    </div>
+    <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Adressen der Haltepunkte prüfen und ändern</summary>
+      <div class="hint">Gelb = fehlt oder bitte prüfen. Änderungen werden sofort gespeichert und gelten für alle künftigen Fahrpläne und Ladelisten.</div>
+      <div class="tablewrap"><table class="list" id="f2-plz"></table></div>
+    </details>
+    <div class="paper" id="f2-paper"></div>
+  </section>
+
+  <!-- LADELISTE -->
+  <section id="tab-lade" class="panel" hidden>
+    <div class="filters">
+      <label>Liefer-Samstag<select id="p-datum"></select></label>
+      <label>Tour<select id="p-tour"></select></label>
+    </div>
+    <div class="actions" style="margin-top:0">
+      <button class="btn" id="printBtn" type="button">Ladeliste zum Drucken speichern</button>
+      <span class="hint" id="printHint">Die Datei öffnet sich im Browser und startet direkt den Druck. Jede Tour beginnt auf einer neuen Seite.</span>
+    </div>
+    <div class="paper" id="paper"></div>
+  </section>
+  <!-- KUNDEN-APP -->
+  <section id="tab-app" class="panel" hidden>
+    <div class="section-h" style="margin-top:0">Termine für die Kunden-App</div>
+    <p class="hint" style="margin-top:0">Nur diese Termine können Kunden in der Bestell-App auswählen. Abholung in Rietberg geht immer.</p>
+    <div class="grid" id="fa-form">
+      <label>Datum<input type="date" id="fa-datum"></label>
+      <label>Tour<select id="fa-tour"></select></label>
+      <label>Nur diese Orte (leer = alle)<select id="fa-orte" multiple size="4"></select></label>
+      <label>Hinweis für Kunden<input id="fa-hinweis" placeholder="z. B. kleine Auswahl"></label>
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn" type="button" id="fa-add">Termin hinzufügen</button>
+      <span class="hint">oder Saison automatisch nach Fahrrhythmus anlegen:</span>
+      <select id="fa-jahr" style="width:auto"></select>
+      <button class="btn ghost" type="button" id="fa-gen">Saison März–Oktober anlegen</button>
+    </div>
+    <div class="tablewrap" style="margin-top:12px"><table class="list" id="fa-table"></table></div>
+
+    <div class="section-h">Sortiment und Preise</div>
+    <p class="hint" style="margin-top:0">Was Kunden in der App sehen. Preise gelten auch als Vorschlag beim Bestellung aufnehmen. Preis leer = „auf Anfrage“. Hahn-Preis leer = keine Hähne bestellbar.</p>
+    <div class="tablewrap"><table class="list" id="pr-table"></table></div>
+    <div class="grid" style="margin-top:10px">
+      <label>Kategorie<input id="pr-kat" list="dl-kat" placeholder="z. B. Rassehühner"></label>
+      <label>Tierart<input id="pr-name" placeholder="z. B. Sundheimer"></label>
+      <label>Preis €<input id="pr-preis" inputmode="decimal"></label>
+      <label>Hahn €<input id="pr-hahn" inputmode="decimal"></label>
+    </div>
+    <datalist id="dl-kat"></datalist>
+    <div class="actions" style="margin-top:10px"><button class="btn ghost" type="button" id="pr-add">Tierart hinzufügen</button></div>
+
+    <div class="section-h">Daten-Umzug</div>
+    <p class="hint" style="margin-top:0">Export-Datei aus dem alten Bestellbuch hier einlesen. Bestellungen mit gleicher Kennung werden überschrieben, nichts wird doppelt.</p>
+    <div class="actions" style="margin-top:0">
+      <label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">Export-Datei auswählen<input type="file" id="imp-file" accept=".json,application/json" hidden></label>
+      <span class="hint" id="imp-state"></span>
+    </div>
+  </section>
+</div>
+
+<datalist id="dl-tiere"></datalist>
+<datalist id="dl-kunden"></datalist>
+<div id="toast" class="toast" hidden></div>
+
+
+</div>
+<script type="module" src="/src/admin/main.js"></script>
+</body>
+</html>

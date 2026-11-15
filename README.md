@@ -3,13 +3,14 @@
 Bestell-App für **Geflügelverkauf Holle**.
 
 - **Kunden-Bestellseite:** `https://taulantdakaj.github.io/holle-app/`
-- **Verwaltung:** `https://taulantdakaj.github.io/holle-app/#/admin`
+- **Verwaltung (Bestellbuch):** `https://taulantdakaj.github.io/holle-app/admin.html`
 
 ## Aufbau
 - Web-App (React + Vite), wird bei jeder Änderung automatisch über GitHub Pages veröffentlicht.
 - Daten liegen in Supabase (EU). Kunden können nur bestellen, aber keine Daten lesen.
   Nur eingetragene Mitarbeiter (Tabelle `staff`) sehen Bestellungen.
-- `supabase/setup.sql` – einmalige Einrichtung der Datenbank inkl. Startdaten.
+- `supabase/setup.sql` – Grundeinrichtung (Mitarbeiter, Sortiment).
+- `supabase/umstellung.sql` – Bestellbuch-Speicher, Termine für die Kunden-App, Kunden-Bestellung.
 - `supabase/mitarbeiter.sql` – Mitarbeiter freischalten.
 
 ## Version 1

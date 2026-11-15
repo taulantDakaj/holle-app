@@ -1,0 +1,22 @@
+/* Holle-App Ergänzungen zum Bestellbuch-Design */
+.gate{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);padding:16px;z-index:20}
+.gatebox{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.gatebox img{width:110px;margin:0 auto;border-radius:50%}
+.gatebox label{text-align:left}
+.gateerr{background:#fdecea;color:#8a1c14;border-radius:8px;padding:8px 10px;font-size:.9rem}
+header.top .brand{display:flex;gap:12px;align-items:center}
+.brandlogo{width:56px;height:56px;border-radius:50%;flex:none}
+.topright{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+@media (max-width:600px){.topright{align-items:flex-start}}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
+.sub a{color:var(--accent)}
+.btn.wa{background:#1fa855;border-color:#1fa855;color:#fff;text-decoration:none;display:inline-flex;align-items:center}
+.chip.neu{background:#e6a419;color:#1b2420}
+.neubox{background:var(--surface);border:2px solid #e6a419;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.neubox h2{font:800 1.25rem var(--display);text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px}
+.neuitem{border-top:1px dashed var(--line);padding:10px 0;display:flex;flex-direction:column;gap:3px}
+.neuitem .tiere{font-weight:700}
+.neuitem .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.neuitem .btn{padding:8px 12px;font-size:.9rem}
+select[multiple]{background:var(--bg)}
+@media print{.neubox,#neuBox{display:none!important}}

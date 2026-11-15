@@ -216,3 +216,5 @@ body.printing .topbar, body.printing .fab { display: none !important; }
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
   body { background: #fff; }
 }
+
+.thint { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }
