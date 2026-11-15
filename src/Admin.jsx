@@ -34,7 +34,7 @@ function Login() {
   return (
     <div className="admin login">
       <form className="card" onSubmit={go}>
-        <img src="./icon.svg" alt="" className="logo" />
+        <img src="./logo.png" alt="" className="logo" />
         <h2>Holle · Verwaltung</h2>
         <label>E-Mail<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         <label>Passwort<input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
@@ -85,7 +85,7 @@ function Dashboard({ session }) {
   return (
     <div className="admin">
       <header className="topbar">
-        <b>Holle</b>
+        <b className="brand"><img src="./logo.png" alt="" />Holle</b>
         <nav>
           <button className={tab === 'orders' ? 'on' : ''} onClick={() => setTab('orders')}>
             Bestellungen{newCount > 0 && <span className="badge">{newCount}</span>}

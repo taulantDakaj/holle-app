@@ -216,7 +216,7 @@ function Page({ children }) {
   return (
     <div className="shop">
       <header className="hero">
-        <img src="./icon.svg" alt="" />
+        <img src="./logo.png" alt="" />
         <div>
           <h1>Geflügelverkauf <em>Holle</em></h1>
           <p>Hühner, Enten &amp; mehr vorbestellen – Abholung am Haltepunkt oder in Rietberg</p>
