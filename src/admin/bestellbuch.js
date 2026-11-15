@@ -865,6 +865,7 @@ function stempel(os,info){
   if(!info.karte||info.gewerbe) return {stempel:0,frei:0};
   let rasse=0,hybrid=0;
   os.filter(o=>o.status==="abgeholt"&&(!info.seit||(o.datum||"")>=info.seit)).forEach(o=>(o.positionen||[]).forEach(p=>{
+    if(/\bhahn\b|hähne?\b/i.test(p.tier||"")) return; // nur Hennen zählen
     const k=kategorie(p.tier),n=+p.anzahl||0;
     if(k==="Rassehühner") rasse+=n; else if(k==="Hybridhennen") hybrid+=n;
   }));
