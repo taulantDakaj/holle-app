@@ -3,6 +3,7 @@ import {
   supabase, fmtDate, fmtDateTime, fmtPrice, todayISO, groupBy, waLink,
   STATUS, SOURCES, itemsText, pickupText, confirmText,
 } from './lib.js';
+import PrintView from './Print.jsx';
 
 const ORDER_SELECT =
   '*, order_items(*), trip_stops(id, stop_time, stop_id, trip_id, stops(name, address), trips(id, trip_date, name))';
@@ -392,7 +393,8 @@ function OrderForm({ order, products, trips, reload, onClose, user }) {
 }
 
 /* ---------------------------------------------------------------- Fahrt-Plan (Bestell- & Lade-Plan) */
-function TripPlan({ trips, orders }) {
+function TripPlan({ trips, orders, products }) {
+  const [printMode, setPrintMode] = useState(null);
   const today = todayISO();
   const upcoming = trips.filter((t) => t.trip_date >= today);
   const past = trips.filter((t) => t.trip_date < today).reverse().slice(0, 20);
@@ -420,11 +422,20 @@ function TripPlan({ trips, orders }) {
 
   const groups = isR
     ? [...groupBy([...tripOrders].sort((a, b) => a.pickup_date.localeCompare(b.pickup_date)), (o) => fmtDate(o.pickup_date)).entries()]
-        .map(([k, os]) => ({ key: k, title: k, orders: os }))
+        .map(([k, os]) => ({ key: k, title: k, name: k, orders: os }))
     : (trip?.trip_stops || []).map((ts) => ({
         key: ts.id, title: `${ts.stop_time ? ts.stop_time + ' · ' : ''}${ts.stops?.name}`,
-        sub: ts.stops?.address, orders: tripOrders.filter((o) => o.trip_stop_id === ts.id),
+        name: ts.stops?.name, time: ts.stop_time, sub: ts.stops?.address,
+        orders: tripOrders.filter((o) => o.trip_stop_id === ts.id),
       }));
+
+  if (printMode) {
+    return (
+      <PrintView mode={printMode} title={isR ? 'Abholungen Rietberg' : trip?.name}
+        date={isR ? null : trip?.trip_date} groups={groups} orders={tripOrders}
+        products={products} onClose={() => setPrintMode(null)} />
+    );
+  }
 
   return (
     <>
@@ -438,7 +449,11 @@ function TripPlan({ trips, orders }) {
             {past.map((t) => <option key={t.id} value={t.id}>{fmtDate(t.trip_date)} · {t.name}</option>)}
           </optgroup>
         </select>
-        <button className="btn sm ghost" onClick={() => window.print()}>Drucken</button>
+        <div className="printbtns">
+          <button className="btn sm" onClick={() => setPrintMode('fahrer')}>🖨 Fahrerliste</button>
+          <button className="btn sm" onClick={() => setPrintMode('lade')}>🖨 Ladeliste LKW</button>
+          <button className="btn sm" onClick={() => setPrintMode('bestell')}>🖨 Bestellliste</button>
+        </div>
       </div>
 
       <div className="card">

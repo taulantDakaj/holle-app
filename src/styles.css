@@ -170,7 +170,48 @@ details.cat[open] summary::after { content: '▾'; }
 .trip { cursor: pointer; }
 .trip.off { opacity: .55; }
 
+/* ---------- Druckansichten ---------- */
+.printbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+.printbtns .btn { flex: 1 1 auto; }
+body.printing .topbar, body.printing .fab { display: none !important; }
+.printview { padding: 0 0 30px; }
+.pv-bar { position: sticky; top: 0; z-index: 3; display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; background: var(--bg); }
+.pv-page { background: #fff; color: #000; padding: 18px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line); overflow-x: auto; font-size: 14px; }
+.pv-head { display: flex; gap: 14px; align-items: center; border-bottom: 3px solid var(--red); padding-bottom: 10px; margin-bottom: 12px; }
+.pv-head img { width: 64px; height: 64px; border-radius: 50%; }
+.pv-head h1 { font-size: 1.35rem; margin: 2px 0; }
+.pv-kicker { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--red); }
+.pv-meta { font-size: .9rem; }
+.pv-printed { margin-left: auto; font-size: .75rem; color: #666; align-self: flex-start; white-space: nowrap; }
+.pv-stop { margin: 14px 0 18px; break-inside: avoid; }
+.pv-stop h2 { font-size: 1.1rem; margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pv-stop h2 small { font-weight: 400; font-size: .85rem; color: #555; }
+.pv-time { background: var(--red); color: #fff; border-radius: 6px; padding: 1px 7px; font-size: .95rem; }
+.pv-stopsum { background: #f4ece6; padding: 5px 8px; border-radius: 6px; font-weight: 600; font-size: .85rem; margin-bottom: 4px; }
+.pv-tbl { width: 100%; border-collapse: collapse; }
+.pv-tbl th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #555; border-bottom: 2px solid #000; padding: 5px 6px; vertical-align: bottom; }
+.pv-tbl td { border-bottom: 1px solid #ccc; padding: 6px; vertical-align: top; }
+.pv-tbl .r { text-align: right; }
+.pv-tbl tr.sum td { font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+.pv-tbl tr.pv-cat td { background: #f4ece6; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; }
+.pv-tbl .c-chk { width: 28px; text-align: center; }
+.pv-tbl .c-note { width: 26%; font-size: .85rem; }
+.pv-tbl .nowrap { white-space: nowrap; }
+.pv-matrix th small { display: block; font-weight: 400; text-transform: none; }
+.pv-matrix td, .pv-matrix th { white-space: nowrap; }
+.pv-write { min-width: 90px; height: 26px; }
+.box { display: inline-block; width: 16px; height: 16px; border: 1.5px solid #000; border-radius: 3px; }
+.pv-total { margin-top: 10px; padding: 8px; border: 2px solid #000; border-radius: 6px; }
+.pv-hint { font-size: .78rem; color: #555; }
+.pv-foot { margin-top: 18px; border-top: 1px solid #ccc; padding-top: 6px; font-size: .72rem; color: #666; text-align: center; }
+
 @media print {
+  .admin { max-width: none; padding: 0; }
+  .admin main { padding: 0; }
+  .pv-page { box-shadow: none; padding: 0; border-radius: 0; overflow: visible; font-size: 11pt; }
+  .pv-stop h2, .pv-tbl tr { break-inside: avoid; }
+  .pv-tbl thead { display: table-header-group; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .topbar, .noprint, .fab { display: none !important; }
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
   body { background: #fff; }
