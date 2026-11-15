@@ -26,12 +26,14 @@ end $$;
 create table if not exists fahrten (
   id       bigint generated always as identity primary key,
   datum    date not null,
-  tour     text not null check (tour in ('T1','T2','T3','T4')),
+  tour     text not null,
   nur_orte text[],                       -- leer = alle Haltepunkte der Tour
   hinweis  text,
   aktiv    boolean not null default true,
   unique (datum, tour)
 );
+alter table fahrten drop constraint if exists fahrten_tour_check;
+alter table fahrten add constraint fahrten_tour_check check (tour in ('T1','T2','T3','T4','T5','T6'));
 alter table fahrten enable row level security;
 drop policy if exists staff_all on fahrten;
 create policy staff_all on fahrten for all to authenticated using (is_staff()) with check (is_staff());
@@ -89,7 +91,7 @@ begin
   if v_datum is null or v_datum < current_date then raise exception 'Bitte einen gültigen Termin wählen.'; end if;
   if v_tour = 'R' then
     v_ort := 'Rietberg Hof';
-  elsif v_tour in ('T1','T2','T3','T4') then
+  elsif v_tour in ('T1','T2','T3','T4','T5','T6') then
     if not exists (select 1 from fahrten where datum = v_datum and tour = v_tour and aktiv) then
       raise exception 'Für diesen Termin gibt es keine Tour mehr. Bitte neu auswählen.'; end if;
     if length(v_ort) < 2 then raise exception 'Bitte einen Haltepunkt wählen.'; end if;
@@ -152,3 +154,17 @@ begin
     end if;
   end loop;
 end $seed$;
+
+-- ---------- Neu ab März 2027: Tour 5 Norddeutschland (2./4. Samstag) und Markt Weikersheim (1. Sonntag) ----------
+do $neu$
+declare d date; n int;
+begin
+  for d in select g::date from generate_series('2027-03-01'::date, '2027-10-31'::date, interval '1 day') g loop
+    n := ceil(extract(day from d) / 7.0);
+    if extract(dow from d) = 6 and n in (2,4) then
+      insert into fahrten (datum, tour) values (d, 'T5') on conflict (datum, tour) do nothing;
+    elsif extract(dow from d) = 0 and n = 1 then
+      insert into fahrten (datum, tour, hinweis) values (d, 'T6', 'Markt 7:00–10:30 Uhr') on conflict (datum, tour) do nothing;
+    end if;
+  end loop;
+end $neu$;

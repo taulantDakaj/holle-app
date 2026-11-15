@@ -38,10 +38,11 @@ const tierText=(o,sep)=>(o.positionen||[]).filter(p=>p.tier&&+p.anzahl).map(p=>`
 function rhythmInfo(dateStr){
   if(!dateStr) return "";
   const d=new Date(dateStr+"T12:00");
-  if(d.getDay()!==6) return `<b>Achtung:</b> ${esc(dLong(dateStr))} ist kein Samstag.`;
+  const wd=d.getDay();
+  if(wd!==6&&wd!==0) return `<b>Achtung:</b> ${esc(dLong(dateStr))} ist kein Samstag.`;
   const n=Math.ceil(d.getDate()/7), m=d.getMonth()+1;
-  const fahren=TOURS.filter(t=>t.id!=="R"&&t.weeks.includes(n)).map(t=>t.nr+" ("+t.name+")");
-  let s=`${esc(dLong(dateStr))} ist der <b>${n}. Samstag</b> im Monat. Laut Fahrplan: <b>${fahren.length?esc(fahren.join(", ")):"keine feste Tour"}</b>. Eschwege wird jede Woche angefahren.`;
+  const fahren=TOURS.filter(t=>t.id!=="R"&&(t.tag??6)===wd&&t.weeks.includes(n)).map(t=>t.nr+" ("+t.name+")");
+  let s=`${esc(dLong(dateStr))} ist der <b>${n}. ${wd===0?"Sonntag":"Samstag"}</b> im Monat. Laut Fahrplan: <b>${fahren.length?esc(fahren.join(", ")):"keine feste Tour"}</b>. Eschwege wird jede Woche angefahren.`;
   if(m<3||m>10) s+=` <b>November bis Februar:</b> nur auf Anfrage.`;
   return s;
 }
@@ -97,8 +98,8 @@ $("#f-datum").addEventListener("change",()=>{$("#f-rhythm").innerHTML=rhythmInfo
 function suggestTour(){
   if(editId) return;
   const v=$("#f-datum").value; if(!v) return; const n=Math.ceil(new Date(v+"T12:00").getDate()/7);
-  const cur=tourById(fTour.value); if(cur&&cur.weeks.includes(n)) return;
-  const t=TOURS.find(t=>t.id!=="R"&&t.weeks.includes(n)); if(t){fTour.value=t.id;fillOrte()}
+  const cur=tourById(fTour.value); if(cur&&cur.weeks.includes(n)&&(cur.tag??6)===new Date(v+"T12:00").getDay()) return;
+  const wd=new Date(v+"T12:00").getDay();const t=TOURS.find(t=>t.id!=="R"&&(t.tag??6)===wd&&t.weeks.includes(n)); if(t){fTour.value=t.id;fillOrte()}
 }
 let posSeq=0;
 function addPos(p={}){
@@ -500,7 +501,7 @@ $("#o-csv").onclick=async()=>{
 /* ---------- Nachweisliste ---------- */
 function buildNachweis(){
   const k=$("#n-kopf").value, n=+$("#n-zeilen").value;
-  const kopfe=k==="*"?["Kreis Eichsfeld","Raum Hildesheim","onOvo Tour","Rietberg"]:[k];
+  const kopfe=k==="*"?["Kreis Eichsfeld","Raum Hildesheim","onOvo Tour","Norddeutschland","Markt Weikersheim","Rietberg"]:[k];
   return `<div class="sheet nach">`+kopfe.map(t=>`<section class="page">
     <div class="hd"><div><div class="t">${esc(t)}</div><div class="tn">Nachweis über die Abgabe von Geflügel</div></div>
       <div style="text-align:right;font-size:12px;line-height:1.4"><b>Geflügelverkauf Holle</b><br>Eberhard-Unkraut-Straße 76<br>33397 Rietberg · 0157 / 80267793</div></div>
@@ -539,7 +540,7 @@ function miniPdf(pages){
 }
 function nachweisPdf(){
   const k=$("#n-kopf").value, n=+$("#n-zeilen").value;
-  const kopfe=k==="*"?["Kreis Eichsfeld","Raum Hildesheim","onOvo Tour","Rietberg"]:[k];
+  const kopfe=k==="*"?["Kreis Eichsfeld","Raum Hildesheim","onOvo Tour","Norddeutschland","Markt Weikersheim","Rietberg"]:[k];
   const L=15,R=195;
   const pages=kopfe.map(t=>{
     const o=[];
@@ -570,7 +571,9 @@ $("#n-print").onclick=async()=>{
 renderNachweis();
 
 /* ---------- Fahrplan ---------- */
+const HALT_START_NEU={"Bispingen":{"laden":"Kiebitzmarkt Renken","str":"Bahnhofstr. 21","plz":"29646","stadt":"Bispingen"},"Rosengarten":{"laden":"Raisa","str":"Bremer Str. 12","plz":"21224","stadt":"Rosengarten"},"Stockelsdorf":{"laden":"Futterhandel Dirk Ullrich","str":"Ahrenböcker Str. 21","plz":"23617","stadt":"Stockelsdorf"},"Weikersheim":{"laden":"Markt","str":"","plz":"97990","stadt":"Weikersheim"}};
 const HALT_START={"Diemelstadt": {"laden": "SVG Rastplatz A44", "str": "", "plz": "34474", "stadt": "Diemelstadt"}, "Burghasungen (Zierenberg)": {"laden": "Pendlerparkplatz A44", "str": "", "plz": "34289", "stadt": "Zierenberg-Burghasungen"}, "Dramfeld": {"laden": "", "str": "Hauptstraße 59", "plz": "37124", "stadt": "Rosdorf-Dramfeld"}, "Teistungen": {"laden": "Gemeindehaus (Parkplatz)", "str": "", "plz": "37339", "stadt": "Teistungen"}, "Worbis": {"laden": "Honsel Tankstelle", "str": "Nordhäuser Str. 44", "plz": "37339", "stadt": "Leinefelde-Worbis"}, "Nordhausen": {"laden": "Scheunenhof Sundhausen", "str": "Uthleber Str. 24", "plz": "99735", "stadt": "Nordhausen-Sundhausen"}, "Dingelstädt": {"laden": "", "str": "Am Schützenplatz", "plz": "37351", "stadt": "Dingelstädt"}, "Groß Bartloff": {"laden": "Edeka Müller", "str": "Auf der Rinne 4", "plz": "37359", "stadt": "Großbartloff"}, "Geismar": {"laden": "", "str": "Am Anger", "plz": "37308", "stadt": "Geismar"}, "Eschwege": {"laden": "Sandrock Tier + Garten", "str": "Friedhofsweg 17", "plz": "37269", "stadt": "Eschwege-Oberhone"}, "Hessisch Lichtenau": {"laden": "OnOvO Tierbedarf", "str": "Am Hambacher Weg 4", "plz": "37235", "stadt": "Hessisch Lichtenau"}, "Gudensberg": {"laden": "", "str": "Fritzlarer Str. 43", "plz": "34281", "stadt": "Gudensberg"}, "Warburg": {"laden": "Raiffeisen-Markt Warburg", "str": "Landfurt 57-61", "plz": "34414", "stadt": "Warburg"}, "Hemeringen": {"laden": "Falcova GmbH & Co. KG", "str": "Herkendorfer Str. 14", "plz": "31840", "stadt": "Hessisch Oldendorf-Hemeringen"}, "Hameln": {"laden": "", "str": "Hastenbecker Weg 82", "plz": "31785", "stadt": "Hameln"}, "Coppenbrügge": {"laden": "Bahnhof", "str": "Bahnhof", "plz": "31863", "stadt": "Coppenbrügge"}, "Hemmendorf": {"laden": "", "str": "Marktplatz 3", "plz": "31020", "stadt": "Salzhemmendorf-Hemmendorf"}, "Burgstemmen": {"laden": "", "str": "Neuer Weg 1-3", "plz": "31171", "stadt": "Nordstemmen-Burgstemmen"}, "Eldagsen": {"laden": "Raiffeisen-Markt Eldagsen", "str": "Lange Str. 83a", "plz": "31832", "stadt": "Springe-Eldagsen"}, "Alfeld (Leine)": {"laden": "Zooparadies Kempf", "str": "", "plz": "31061", "stadt": "Alfeld (Leine)"}, "Hildesheim": {"laden": "MTG Fleige", "str": "Frankenstraße 2", "plz": "31135", "stadt": "Hildesheim"}, "Holle": {"laden": "", "str": "Am Mohldberg 1", "plz": "31188", "stadt": "Holle"}, "Steinlah": {"laden": "Gebrüderkassel Mühle", "str": "Mühlenweg 3", "plz": "38275", "stadt": "Haverlah-Steinlah"}, "Vechelde": {"laden": "Raiffeisenmarkt", "str": "", "plz": "38159", "stadt": "Vechelde"}, "Groß Lafferde": {"laden": "", "str": "Marktstraße 50", "plz": "31246", "stadt": "Ilsede-Groß Lafferde"}, "Schellerten": {"laden": "EDEKA Herbst", "str": "Über der Wasserfurche 1", "plz": "31174", "stadt": "Schellerten"}, "Beverungen": {"laden": "onOvo Stadtmühle", "str": "Lange Str. 1", "plz": "37688", "stadt": "Beverungen"}, "Hann. Münden": {"laden": "onOvo Farmer Store", "str": "Veckerhäger Str. 82", "plz": "34346", "stadt": "Hann. Münden"}, "Rosdorf": {"laden": "Farmerstore onOvo", "str": "", "plz": "37124", "stadt": "Rosdorf"}, "Waldkappel": {"laden": "Rewe (Einfahrt)", "str": "", "plz": "37284", "stadt": "Waldkappel"}, "Rietberg Hof": {"laden": "Hof Holle", "str": "Merschhemkeweg", "plz": "33397", "stadt": "Rietberg"}, "Rietberg zuhause": {"laden": "", "str": "Eberhard-Unkraut-Straße 76", "plz": "33397", "stadt": "Rietberg"}};
+Object.assign(HALT_START,HALT_START_NEU);
 const PLZ_PRUEFEN=["Hameln", "Hildesheim"];
 let plzEigen={};
 function halt(o){const e=plzEigen[o]??(o==="Hemmendorf"?undefined:undefined);const b=HALT_START[o]||{laden:"",str:"",plz:"",stadt:o};return typeof e==="string"?{...b,plz:e}:{...b,...(e||{})};}
@@ -794,14 +797,14 @@ $("#fa-gen").onclick=async()=>{
   const y=+$("#fa-jahr").value, rows=[];
   for(let m=2;m<=9;m++){ // März bis Oktober
     for(let d=new Date(y,m,1);d.getMonth()===m;d.setDate(d.getDate()+1)){
-      if(d.getDay()!==6) continue;
+      const wd=d.getDay(); if(wd!==6&&wd!==0) continue;
       const n=Math.ceil(d.getDate()/7), ds=iso(d);
-      const ts=TOURS.filter(t=>t.id!=="R"&&t.weeks.includes(n));
+      const ts=TOURS.filter(t=>t.id!=="R"&&(t.tag??6)===wd&&t.weeks.includes(n));
       ts.forEach(t=>rows.push({datum:ds,tour:t.id,nur_orte:null,aktiv:true}));
-      if(!ts.some(t=>t.stops.some(s=>s[1]==="Eschwege"))) rows.push({datum:ds,tour:"T4",nur_orte:["Eschwege"],aktiv:true});
+      if(wd===6&&!ts.some(t=>t.stops.some(s=>s[1]==="Eschwege"))) rows.push({datum:ds,tour:"T4",nur_orte:["Eschwege"],aktiv:true});
     }
   }
-  if(!confirm(`${rows.length} Termine für ${y} anlegen (2./4. Samstag Tour 1+2, 3. Samstag Tour 3, 1./3. Samstag Tour 4, Eschwege jeden Samstag)? Vorhandene Termine bleiben unverändert.`))return;
+  if(!confirm(`${rows.length} Termine für ${y} anlegen (laut Fahrrhythmus jeder Tour, Eschwege jeden Samstag, Markt Weikersheim jeden 1. Sonntag)? Vorhandene Termine bleiben unverändert.`))return;
   const {error}=await SB.from("fahrten").upsert(rows,{onConflict:"datum,tour",ignoreDuplicates:true});
   toast(error?"Anlegen fehlgeschlagen.":"Termine angelegt");loadFahrten();
 };
