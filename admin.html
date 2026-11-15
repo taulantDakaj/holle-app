@@ -50,6 +50,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="neu" aria-selected="true">Bestellung aufnehmen</button>
     <button role="tab" data-tab="liste" aria-selected="false">Bestellungen <span class="n" id="cnt">0</span></button>
+    <button role="tab" data-tab="kunden" aria-selected="false">Kunden</button>
     <button role="tab" data-tab="bedarf" aria-selected="false">Tierbedarf</button>
     <button role="tab" data-tab="bestell" aria-selected="false">Bestellliste</button>
     <button role="tab" data-tab="lade" aria-selected="false">Ladeliste</button>
@@ -115,6 +116,18 @@
       <span class="total" id="l-sum"></span>
     </div>
     <div id="bspWrap"></div>
+  </section>
+
+  <!-- KUNDEN -->
+  <section id="tab-kunden" class="panel" hidden>
+    <div class="filters">
+      <label>Suche<input id="k-q" placeholder="Name, Telefon, Ort"></label>
+      <label>Anzeigen<select id="k-f"><option value="">Alle Kunden</option><option value="karte">Nur mit Stempelkarte</option><option value="gratis">Gratis-Huhn fällig</option><option value="stamm">Stammkunden (3+ Bestellungen)</option></select></label>
+    </div>
+    <div class="kpis" id="k-kpis"></div>
+    <div id="k-detail"></div>
+    <div class="tablewrap"><table class="list" id="k-table"></table></div>
+    <p class="hint">Stempelkarte: 1 Rassehuhn = 1 Stempel, 2 Hybridhühner = 1 Stempel. Gezählt werden nur abgeholte Bestellungen ab dem Tag, an dem die Karte eingerichtet wurde. 10 Stempel = 1 Huhn nach Wahl bis 30 €. Nur für Privatkunden.</p>
   </section>
 
   <!-- BEDARF -->
@@ -220,6 +233,15 @@
     </div>
     <datalist id="dl-kat"></datalist>
     <div class="actions" style="margin-top:10px"><button class="btn ghost" type="button" id="pr-add">Tierart hinzufügen</button></div>
+
+    <div class="section-h">Benachrichtigung aufs Handy</div>
+    <p class="hint" style="margin-top:0">Bei jeder neuen Kunden-Bestellung bekommst du eine Push-Nachricht. Dafür einmal die kostenlose App <b>ntfy</b> installieren, auf <b>+</b> tippen und dieses Thema abonnieren:</p>
+    <div class="actions" style="margin-top:6px">
+      <code id="push-topic" class="topic">…</code>
+      <button class="btn ghost" type="button" id="push-copy">Kopieren</button>
+      <button class="btn" type="button" id="push-test">Test senden</button>
+    </div>
+    <p class="hint">Das Thema ist wie ein Passwort: nicht weitergeben, sonst sieht jemand anderes deine Bestell-Nachrichten (ohne Telefonnummern).</p>
 
     <div class="section-h">Daten-Umzug</div>
     <p class="hint" style="margin-top:0">Export-Datei aus dem alten Bestellbuch hier einlesen. Bestellungen mit gleicher Kennung werden überschrieben, nichts wird doppelt.</p>

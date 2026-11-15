@@ -20,3 +20,15 @@ header.top .brand{display:flex;gap:12px;align-items:center}
 .neuitem .btn{padding:8px 12px;font-size:.9rem}
 select[multiple]{background:var(--bg)}
 @media print{.neubox,#neuBox{display:none!important}}
+.topic{font:600 1rem ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 12px;user-select:all;word-break:break-all}
+.kcard{background:var(--bg);border:2px solid var(--accent);border-radius:10px;padding:14px;margin-bottom:16px}
+.kcard h2{font:800 1.5rem var(--display);margin:0}
+.khead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.kcard .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.kcard .btn{padding:8px 12px;font-size:.9rem}
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dots i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--accent)}
+.dots i.on{background:var(--accent)}
+.bigdots .dots{gap:6px}
+.bigdots .dots i{width:24px;height:24px;border-width:2px}
+b.ok{color:var(--ok)}

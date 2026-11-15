@@ -168,3 +168,60 @@ begin
     end if;
   end loop;
 end $neu$;
+
+-- =====================================================================
+-- Push-Benachrichtigung bei neuer Kunden-Bestellung (über die kostenlose App „ntfy“)
+-- =====================================================================
+do $$ begin
+  create extension if not exists pg_net;
+exception when others then raise notice 'pg_net nicht verfügbar';
+end $$;
+
+create table if not exists app_settings (key text primary key, value text);
+alter table app_settings enable row level security;
+drop policy if exists staff_all on app_settings;
+create policy staff_all on app_settings for all to authenticated using (is_staff()) with check (is_staff());
+insert into app_settings (key, value)
+  values ('ntfy_topic', 'holle-' || substr(md5(random()::text || clock_timestamp()::text), 1, 12))
+  on conflict (key) do nothing;
+
+create or replace function push_senden(titel text, text_ text) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_topic text := (select value from app_settings where key = 'ntfy_topic');
+begin
+  if v_topic is null or v_topic = '' then return; end if;
+  begin
+    perform net.http_post(
+      url := 'https://ntfy.sh',
+      body := jsonb_build_object('topic', v_topic, 'title', titel, 'message', text_,
+                'tags', jsonb_build_array('chicken'), 'priority', 4,
+                'click', 'https://taulantdakaj.github.io/holle-app/admin.html'),
+      headers := '{"Content-Type":"application/json"}'::jsonb);
+  exception when others then null; -- eine Bestellung darf nie an der Benachrichtigung scheitern
+  end;
+end $$;
+revoke all on function push_senden(text, text) from public, anon, authenticated;
+
+create or replace function bb_neu_benachrichtigen() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare t text;
+begin
+  if new.coll = 'orders' and new.data->>'status' = 'neu' and new.data->>'quelle' = 'kunde' then
+    select string_agg((p->>'anzahl') || '× ' || (p->>'tier'), ', ') into t
+      from jsonb_array_elements(new.data->'positionen') p;
+    perform push_senden('Neue Bestellung: ' || (new.data->>'kunde'),
+      coalesce(t, '') || E'\n' || to_char((new.data->>'datum')::date, 'DD.MM.') || ' · ' || (new.data->>'ort'));
+  end if;
+  return new;
+end $$;
+drop trigger if exists bb_neu_push on bb_docs;
+create trigger bb_neu_push after insert on bb_docs for each row execute function bb_neu_benachrichtigen();
+
+create or replace function push_test() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not is_staff() then raise exception 'Kein Zugriff'; end if;
+  perform push_senden('Holle-App', 'Test: Benachrichtigungen funktionieren 🐔');
+end $$;
+revoke all on function push_test() from public, anon;
+grant execute on function push_test() to authenticated;

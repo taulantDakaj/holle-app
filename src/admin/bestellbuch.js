@@ -166,7 +166,7 @@ $("#form").addEventListener("submit",async e=>{
 
 /* ---------- Tabs ---------- */
 function showTab(id){document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id));
-  ["neu","liste","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
+  ["neu","liste","kunden","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------- Filter / Auswahl ---------- */
@@ -643,7 +643,7 @@ function renderAll(){
   { const sel=$("#l-datum"),cur=sel.value,ds=[...new Set(orders.filter(o=>istAlt(o)===listArchiv).map(o=>o.datum).filter(Boolean))].sort();
     if(listArchiv) ds.reverse();
     sel.innerHTML=`<option value="">Alle Termine</option>`+ds.map(d=>`<option value="${d}">${esc(dLong(d))}</option>`).join(""); sel.value=ds.includes(cur)?cur:""; }dateOptions($("#p-datum"),false);
-  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
+  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
 }
 resetForm();renderAll();
 try{const t=localStorage.getItem("holle-tab");if(t)showTab(t)}catch(e){}
@@ -835,3 +835,97 @@ $("#imp-file").addEventListener("change",async e=>{
 });
 
 loadProducts();loadFahrten();
+
+/* ---------- Push-Benachrichtigung ---------- */
+(async()=>{
+  const {data}=await SB.from("app_settings").select("value").eq("key","ntfy_topic").maybeSingle();
+  $("#push-topic").textContent=data?.value||"(noch nicht eingerichtet – Datenbank-Umstellung ausführen)";
+})();
+$("#push-copy").onclick=async()=>{try{await navigator.clipboard.writeText($("#push-topic").textContent);toast("Kopiert")}catch(e){toast("Bitte von Hand markieren und kopieren.")}};
+$("#push-test").onclick=async()=>{const {error}=await SB.rpc("push_test");toast(error?"Test fehlgeschlagen.":"Test gesendet – kommt gleich aufs Handy")};
+
+/* ---------- Kundenkartei und Stempelkarte ---------- */
+var kundenInfo={}; // Schlüssel -> {karte:true, seit:"YYYY-MM-DD", eingeloest:n, gewerbe:bool, notiz}
+window.__holle.db.collection("kunden").onSnapshot(s=>{kundenInfo={};s.docs.forEach(d=>kundenInfo[d.id]=d.data());renderKunden()},()=>{});
+function telKey(t){let n=String(t||"").replace(/[^0-9+]/g,"");if(n.startsWith("+"))n=n.slice(1);else if(n.startsWith("00"))n=n.slice(2);else if(n.startsWith("0"))n="49"+n.slice(1);return n.length>=8?n:""}
+function kundeKey(o){return telKey(o.telefon)||("name:"+(o.kunde||"").trim().toLowerCase())}
+var kSel=null;
+function kundenListe(){
+  const m=new Map();
+  orders.forEach(o=>{const k=kundeKey(o);if(!m.has(k))m.set(k,{key:k,orders:[]});m.get(k).orders.push(o)});
+  return [...m.values()].map(c=>{
+    const os=c.orders.sort((a,b)=>(b.datum||"").localeCompare(a.datum||""));
+    const last=os[0], act=os.filter(o=>o.status!=="storniert");
+    const info=kundenInfo[c.key]||{};
+    return {...c,orders:os,name:last.kunde,telefon:os.find(o=>o.telefon)?.telefon||"",wohnort:os.find(o=>o.wohnort)?.wohnort||"",
+      anzahl:act.length,tiere:act.reduce((a,o)=>a+stueck(o),0),umsatz:act.reduce((a,o)=>a+betrag(o),0),letzte:last.datum,info,...stempel(os,info)};
+  });
+}
+function stempel(os,info){
+  if(!info.karte||info.gewerbe) return {stempel:0,frei:0};
+  let rasse=0,hybrid=0;
+  os.filter(o=>o.status==="abgeholt"&&(!info.seit||(o.datum||"")>=info.seit)).forEach(o=>(o.positionen||[]).forEach(p=>{
+    const k=kategorie(p.tier),n=+p.anzahl||0;
+    if(k==="Rassehühner") rasse+=n; else if(k==="Hybridhennen") hybrid+=n;
+  }));
+  const st=rasse+Math.floor(hybrid/2), frei=Math.floor(st/10)-(+info.eingeloest||0);
+  return {stempel:st,rest:st-(Math.floor(st/10))*10,frei:Math.max(0,frei)};
+}
+async function saveKunde(key,patch){
+  const cur=kundenInfo[key]||{};
+  try{await window.__holle.db.doc("kunden/"+key).set({...cur,...patch,updated:new Date().toISOString()});toast("Gespeichert")}
+  catch(e){toast("Speichern fehlgeschlagen.")}
+}
+function renderKunden(){
+  const tb=$("#k-table"); if(!tb) return;
+  const q=$("#k-q").value.trim().toLowerCase(), f=$("#k-f").value;
+  let ks=kundenListe();
+  const alle=ks.length, karten=ks.filter(k=>k.info.karte&&!k.info.gewerbe).length, faellig=ks.filter(k=>k.frei>0).length;
+  $("#k-kpis").innerHTML=`<div class="kpi"><b>${alle}</b><span>Kunden</span></div><div class="kpi"><b>${ks.filter(k=>k.anzahl>=3).length}</b><span>Stammkunden</span></div><div class="kpi"><b>${karten}</b><span>Stempelkarten</span></div><div class="kpi"><b>${faellig}</b><span>Gratis-Huhn fällig</span></div>`;
+  if(q) ks=ks.filter(k=>[k.name,k.telefon,k.wohnort,...k.orders.map(o=>o.ort)].join(" ").toLowerCase().includes(q));
+  if(f==="karte") ks=ks.filter(k=>k.info.karte&&!k.info.gewerbe);
+  if(f==="gratis") ks=ks.filter(k=>k.frei>0);
+  if(f==="stamm") ks=ks.filter(k=>k.anzahl>=3);
+  ks.sort((a,b)=>b.frei-a.frei||(b.letzte||"").localeCompare(a.letzte||"")||a.name.localeCompare(b.name,"de"));
+  tb.innerHTML=`<thead><tr><th>Kunde</th><th class="num">Bestellungen</th><th class="num">Tiere</th><th class="num">Umsatz</th><th>Zuletzt</th><th>Stempelkarte</th></tr></thead><tbody>`+
+    (ks.length?ks.slice(0,300).map(k=>`<tr class="row" data-k="${esc(k.key)}" tabindex="0"><td><b>${esc(k.name)}</b><br><span class="sub">${esc(k.telefon)}${k.wohnort?" · "+esc(k.wohnort):""}</span></td>
+      <td class="num">${k.anzahl}</td><td class="num">${k.tiere}</td><td class="num">${k.umsatz?esc(eur(k.umsatz)):"–"}</td><td style="white-space:nowrap">${esc(dShort(k.letzte))}</td>
+      <td>${k.info.gewerbe?'<span class="chip">Gewerbe</span>':k.info.karte?`${stempelDots(k)}${k.frei?` <span class="chip neu">${k.frei}× gratis</span>`:""}`:'<span class="sub">–</span>'}</td></tr>`).join("")
+      :`<tr><td colspan="6" class="empty">Keine Kunden gefunden.</td></tr>`)+`</tbody>`;
+  tb.querySelectorAll("tr.row").forEach(r=>{r.onclick=()=>{kSel=r.dataset.k;renderKundeDetail();$("#k-detail").scrollIntoView({behavior:"smooth"})}});
+  renderKundeDetail();
+}
+function stempelDots(k){return `<span class="dots">${Array.from({length:10},(_,i)=>`<i class="${i<k.rest||(k.frei>0&&k.rest===0)?"on":""}"></i>`).join("")}</span>`}
+function renderKundeDetail(){
+  const box=$("#k-detail"); if(!box) return;
+  const k=kSel&&kundenListe().find(x=>x.key===kSel);
+  if(!k){box.innerHTML="";return}
+  const wa=k.telefon?`https://wa.me/${waNum(k.telefon)}`:"";
+  box.innerHTML=`<div class="kcard">
+    <div class="khead"><div><h2>${esc(k.name)}</h2><div class="sub">${esc(k.telefon)}${k.wohnort?" · "+esc(k.wohnort):""}</div></div>
+      <button class="btn ghost" type="button" id="k-close">Schließen</button></div>
+    <div class="btns">${wa?`<a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost" href="tel:${esc(k.telefon.replace(/\s/g,""))}">Anrufen</a>`:""}
+      <button class="btn ghost" type="button" id="k-neu">Neue Bestellung</button></div>
+    <div class="section-h">Stempelkarte</div>
+    ${k.info.gewerbe?`<p>Als <b>Gewerbe / Mobilstall</b> markiert – keine Stempelkarte.</p><button class="btn ghost" type="button" id="k-gew0">Doch Privatkunde</button>`:
+      k.info.karte?`<div class="bigdots">${stempelDots(k)}</div>
+        <p><b>${k.stempel}</b> Stempel gesammelt seit ${esc(dShort(k.info.seit))} · ${+k.info.eingeloest||0}× eingelöst${k.frei?` · <b class="ok">${k.frei} Gratis-Huhn fällig</b>`:` · noch ${10-k.rest} bis zum Gratis-Huhn`}</p>
+        <div class="btns">${k.frei?`<button class="btn" type="button" id="k-einl">Gratis-Huhn einlösen</button>`:""}
+        ${wa?`<a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/${esc(waNum(k.telefon))}?text=${encodeURIComponent(`Hallo ${(k.name||"").split(" ")[0]}, deine Holle-Stempelkarte: ${k.stempel} Stempel${k.frei?` – du hast ${k.frei} Huhn nach Wahl (bis 30 €) gratis! 🐔`:`, noch ${10-k.rest} bis zu deinem Gratis-Huhn.`}\nViele Grüße\nGeflügelverkauf Holle`)}">Stand per WhatsApp</a>`:""}
+        <button class="btn warn" type="button" id="k-aus">Karte beenden</button></div>`:
+      `<p class="sub">Noch keine Stempelkarte. Richte sie ein, wenn der Kunde danach fragt.</p>
+       <div class="btns"><button class="btn" type="button" id="k-an">Stempelkarte einrichten</button><button class="btn ghost" type="button" id="k-gew">Gewerbe / Mobilstall</button></div>`}
+    <div class="section-h">Bestellungen</div>
+    <div class="tablewrap"><table class="list"><tbody>${k.orders.map(o=>{const tr=tourById(o.tour);return `<tr class="row" data-id="${esc(o.id)}"><td style="white-space:nowrap">${esc(dShort(o.datum))}</td><td>${esc(tr?tr.nr:o.tour)} · ${esc(o.ort)}</td><td>${esc(tierText(o,", "))}</td><td class="num">${betrag(o)?esc(eur(betrag(o))):""}</td><td><span class="chip ${esc(o.status)}">${esc(o.status||"offen")}</span></td></tr>`}).join("")}</tbody></table></div>
+  </div>`;
+  $("#k-close").onclick=()=>{kSel=null;renderKundeDetail()};
+  box.querySelectorAll("tr.row").forEach(r=>r.onclick=()=>editOrder(r.dataset.id));
+  const on=(id,fn)=>{const el=$(id);if(el)el.onclick=fn};
+  on("#k-an",()=>saveKunde(k.key,{karte:true,seit:iso(new Date()),eingeloest:0,gewerbe:false,name:k.name}));
+  on("#k-aus",()=>confirm("Stempelkarte beenden? Gesammelte Stempel verfallen.")&&saveKunde(k.key,{karte:false}));
+  on("#k-gew",()=>saveKunde(k.key,{gewerbe:true,name:k.name}));
+  on("#k-gew0",()=>saveKunde(k.key,{gewerbe:false}));
+  on("#k-einl",()=>confirm("Gratis-Huhn als eingelöst eintragen?")&&saveKunde(k.key,{eingeloest:(+k.info.eingeloest||0)+1}));
+  on("#k-neu",()=>{resetForm();$("#f-kunde").value=k.name;$("#f-tel").value=k.telefon;$("#f-wohnort").value=k.wohnort;showTab("neu");window.scrollTo({top:0,behavior:"smooth"})});
+}
+["#k-q","#k-f"].forEach(s=>$(s).addEventListener("input",renderKunden));
