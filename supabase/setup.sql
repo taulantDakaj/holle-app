@@ -23,12 +23,16 @@ create table if not exists products (
   id         bigint generated always as identity primary key,
   category   text    not null,
   name       text    not null,
-  price      numeric(8,2),          -- leer = Preis auf Anfrage
+  price      numeric(8,2),          -- Preis Henne bzw. Stückpreis; leer = Preis auf Anfrage
+  price_hahn numeric(8,2),          -- Preis Hahn; leer = kein Hahn bestellbar
   price_note text,                  -- z. B. "je nach Alter"
   available  boolean not null default true,
   sort       int     not null default 100,
   note       text
 );
+
+alter table products add column if not exists price_hahn numeric(8,2);
+create unique index if not exists products_name_key on products(name);
 
 -- ---------- Haltepunkte ----------
 create table if not exists stops (
@@ -122,7 +126,7 @@ language sql stable security definer set search_path = public as $$
     'products', coalesce((
       select json_agg(json_build_object(
         'id', p.id, 'category', p.category, 'name', p.name,
-        'price', p.price, 'price_note', p.price_note, 'note', p.note)
+        'price', p.price, 'price_hahn', p.price_hahn, 'price_note', p.price_note, 'note', p.note)
         order by p.sort, p.category, p.name)
       from products p where p.available), '[]'::json),
     'trips', coalesce((
@@ -189,8 +193,14 @@ begin
     if v_qty is null or v_qty < 1 or v_qty > 1000 then raise exception 'Ungültige Anzahl.'; end if;
     select * into v_prod from products where id = (v_item->>'product_id')::bigint and available;
     if not found then raise exception 'Ein ausgewähltes Tier ist nicht mehr verfügbar.'; end if;
-    insert into order_items (order_id, product_id, product_name, category, qty, unit_price)
-    values (v_order.id, v_prod.id, v_prod.name, v_prod.category, v_qty, v_prod.price);
+    if coalesce((v_item->>'hahn')::boolean, false) then
+      if v_prod.price_hahn is null then raise exception 'Für % gibt es keine Hähne.', v_prod.name; end if;
+      insert into order_items (order_id, product_id, product_name, category, qty, unit_price)
+      values (v_order.id, v_prod.id, v_prod.name || ' (Hahn)', v_prod.category, v_qty, v_prod.price_hahn);
+    else
+      insert into order_items (order_id, product_id, product_name, category, qty, unit_price)
+      values (v_order.id, v_prod.id, v_prod.name, v_prod.category, v_qty, v_prod.price);
+    end if;
   end loop;
 
   return json_build_object('order_no', v_order.order_no, 'pickup_date', v_date);
@@ -209,46 +219,103 @@ exception when others then null;
 end $$;
 
 -- =====================================================================
--- Startdaten (bitte in der App unter „Sortiment“ und „Fahrten“ prüfen)
+-- Sortiment & Preise (Stand Preisliste November 2026)
+-- Kann jederzeit erneut ausgeführt werden: aktualisiert Preise nach Namen.
 -- =====================================================================
-insert into products (category, name, price, price_note, sort) values
- ('Legehybriden','Braune Tetra',null,null,10),
- ('Legehybriden','Weiße Leghorn',null,null,11),
- ('Legehybriden','Schwarze Bovan',null,null,12),
- ('Legehybriden','Sussex hell',null,null,13),
- ('Legehybriden','Sussex dunkel',null,null,14),
- ('Legehybriden','Italiener silber',null,null,15),
- ('Legehybriden','Italiener rebhuhnfarbig',null,null,16),
- ('Legehybriden','Königsberger',null,null,17),
- ('Legehybriden','Rhodeländer',null,null,18),
- ('Legehybriden','Blausperber',null,null,19),
- ('Legehybriden','Tricolor',null,'legt beige Eier',20),
- ('Legehybriden','Dalmatiner',null,null,21),
- ('Legehybriden','Welsumer (Zwerg)',null,null,22),
- ('Rassehühner','Ayam Cemani',null,null,30),
- ('Rassehühner','Bielefelder Kennhuhn',null,null,31),
- ('Rassehühner','Brahma',null,null,32),
- ('Rassehühner','Cochin gelb',null,null,33),
- ('Rassehühner','Eulenbarthuhn',null,null,34),
- ('Rassehühner','Französische Marans',null,null,35),
- ('Rassehühner','Paduaner',null,null,36),
- ('Rassehühner','Zwerg-Paduaner',null,null,37),
- ('Rassehühner','Schwedische Blumenhühner',null,null,38),
- ('Rassehühner','Seidenhühner',null,null,39),
- ('Rassehühner','Weißhauben',null,null,40),
- ('Rassehühner','Zwerg-Amrock',null,null,41),
- ('Rassehühner','Zwerg-New Hampshire',null,null,42),
- ('Rassehühner','Zwerg-Wyandotten',null,null,43),
- ('Enten','Laufenten',null,'Preis je nach Alter',50),
- ('Enten','Landenten',null,'Preis je nach Alter',51),
- ('Gänse','Gänse',null,'Preis je nach Alter',60),
- ('Puten','Puten',null,'Preis je nach Alter',70),
- ('Perlhühner','Perlhühner',null,'Preis je nach Alter',80),
- ('Wachteln','Wachteln',null,null,90),
- ('Masthähnchen','Masthähnchen (3 Wochen)',4.50,null,100),
- ('Masthähnchen','Masthähnchen schlachtreif',null,null,101);
+delete from products where name in ('Königsberger','Welsumer (Zwerg)','Bielefelder Kennhuhn','Cochin gelb','Eulenbarthuhn','Zwerg-Paduaner','Zwerg-Amrock','Zwerg-New Hampshire','Zwerg-Wyandotten','Gänse','Puten');
+update products set category = 'Hybrid-Legehennen' where category = 'Legehybriden';
 
-insert into stops (name, region, address, note, sort) values
+insert into products (category, name, price, price_hahn, price_note, sort) values
+ ('Hybrid-Legehennen','Braune Tetra',13,11,null,1),
+ ('Hybrid-Legehennen','Schwarze Bovan',14,12,null,2),
+ ('Hybrid-Legehennen','Weiße Leghorn',13,11,null,3),
+ ('Hybrid-Legehennen','Sussex hell',14,12,null,4),
+ ('Hybrid-Legehennen','Sussex dunkel',16,14,null,5),
+ ('Hybrid-Legehennen','Blausperber',14,12,null,6),
+ ('Hybrid-Legehennen','Goldsperber',16,14,null,7),
+ ('Hybrid-Legehennen','Grünleger',16,14,null,8),
+ ('Hybrid-Legehennen','Blauleger',20,18,null,9),
+ ('Hybrid-Legehennen','Maran+',16,14,null,10),
+ ('Hybrid-Legehennen','Rhodeländer',16,14,null,11),
+ ('Hybrid-Legehennen','Italiener silber',16,14,null,12),
+ ('Hybrid-Legehennen','Italiener rebhuhnfarbig',16,14,null,13),
+ ('Hybrid-Legehennen','Königsberger silberblau',16,14,null,14),
+ ('Hybrid-Legehennen','Dalmatiner',20,18,null,15),
+ ('Hybrid-Legehennen','Tricolor',20,18,'legt beige Eier',16),
+ ('Rassehühner','Amrock',30,20,null,17),
+ ('Rassehühner','Araucana',22,20,null,18),
+ ('Rassehühner','Ayam Cemani',30,20,null,19),
+ ('Rassehühner','Barnevelder',30,20,null,20),
+ ('Rassehühner','Bielefelder Kennhühner',30,20,null,21),
+ ('Rassehühner','Brahma',42,20,null,22),
+ ('Rassehühner','Cream Legbar',30,20,null,23),
+ ('Rassehühner','Deutsche Lachshühner',36,20,null,24),
+ ('Rassehühner','Eulenbart',30,20,null,25),
+ ('Rassehühner','Französische Marans',30,20,null,26),
+ ('Rassehühner','Große Cochin',30,20,null,27),
+ ('Rassehühner','Große Wyandotten',30,20,null,28),
+ ('Rassehühner','Houdan',35,20,null,29),
+ ('Rassehühner','New Hampshire',30,20,null,30),
+ ('Rassehühner','Olivleger',30,20,null,31),
+ ('Rassehühner','Orpington',40,20,null,32),
+ ('Rassehühner','Paduaner',35,20,null,33),
+ ('Rassehühner','Schwedische Blumenhühner',30,20,null,34),
+ ('Rassehühner','Seidenhühner',35,20,null,35),
+ ('Rassehühner','Sulmtaler',30,20,null,36),
+ ('Rassehühner','Vorwerk',30,20,null,37),
+ ('Rassehühner','Weißhauben',30,20,null,38),
+ ('Rassehühner','Welsumer',30,20,null,39),
+ ('Zwerghühner','Bartzwerge',30,20,null,40),
+ ('Zwerghühner','Mod. Engl. Zwergkämpfer',30,20,null,41),
+ ('Zwerghühner','Sebright',30,20,null,42),
+ ('Zwerghühner','Watermaalsche Zwerge',30,20,null,43),
+ ('Zwerghühner','Zwerg Amrock',30,20,null,44),
+ ('Zwerghühner','Zwerg Bielefelder',22,20,null,45),
+ ('Zwerghühner','Zwerg Cochin',30,20,null,46),
+ ('Zwerghühner','Zwerg Lachshühner',30,20,null,47),
+ ('Zwerghühner','Zwerg New Hampshire',30,20,null,48),
+ ('Zwerghühner','Zwerg Paduaner',30,20,null,49),
+ ('Zwerghühner','Zwerg Sussex',30,20,null,50),
+ ('Zwerghühner','Zwerg Welsumer',18,20,null,51),
+ ('Zwerghühner','Zwerg Wyandotten',30,20,null,52),
+ ('Enten & Gänse','Flugenten',null,null,'Preis auf Anfrage',53),
+ ('Enten & Gänse','Laufenten',null,null,'Preis auf Anfrage',54),
+ ('Enten & Gänse','Landenten',null,null,'Preis auf Anfrage',55),
+ ('Enten & Gänse','Dänenenten',null,null,'Preis auf Anfrage',56),
+ ('Enten & Gänse','Sachsenenten',null,null,'Preis auf Anfrage',57),
+ ('Enten & Gänse','Mularden',null,null,'Preis auf Anfrage',58),
+ ('Enten & Gänse','Wildenten',null,null,'Preis auf Anfrage',59),
+ ('Enten & Gänse','Gössel',null,null,'12–16 € je nach Alter',60),
+ ('Weiteres Geflügel','Masthähnchen (3 Wochen)',4.5,null,null,61),
+ ('Weiteres Geflügel','Masthähnchen schlachtreif',null,null,'Preis auf Anfrage',62),
+ ('Weiteres Geflügel','Wachteln',7,null,null,63),
+ ('Weiteres Geflügel','Perlhühner',null,null,'11–15 € je nach Alter',64),
+ ('Weiteres Geflügel','Weiße Puten',null,null,'11–15 € je nach Alter',65),
+ ('Weiteres Geflügel','Bronzeputen',null,null,'12–16 € je nach Alter',66)
+on conflict (name) do update set
+  category = excluded.category, price = excluded.price, price_hahn = excluded.price_hahn,
+  price_note = excluded.price_note, sort = excluded.sort;
+
+-- =====================================================================
+-- Haltepunkte und Fahrten (nur beim ersten Ausführen)
+-- =====================================================================
+create or replace function _seed_trip(d date, n text, stop_names text[]) returns void
+language plpgsql as $$
+declare tid bigint; i int;
+begin
+  insert into trips (trip_date, name) values (d, n) returning id into tid;
+  for i in 1 .. array_length(stop_names,1) loop
+    insert into trip_stops (trip_id, stop_id, sort)
+    select tid, id, i from stops where name = stop_names[i];
+  end loop;
+end $$;
+
+do $seed$
+declare d date;
+begin
+  if exists (select 1 from stops) then return; end if;
+
+  insert into stops (name, region, address, note, sort) values
  ('Warburg','Warburg-Tour','Raiffeisen Markt',null,10),
  ('Beverungen','Warburg-Tour',null,null,11),
  ('Hann. Münden','Warburg-Tour','Farmerstore',null,12),
@@ -273,43 +340,27 @@ insert into stops (name, region, address, note, sort) values
  ('Rosengarten','neu ab 2027',null,null,51),
  ('Bispingen','neu ab 2027',null,null,52);
 
--- Hilfsfunktion nur für die Startdaten
-create or replace function _seed_trip(d date, n text, stop_names text[]) returns void
-language plpgsql as $$
-declare tid bigint; i int;
-begin
-  insert into trips (trip_date, name) values (d, n) returning id into tid;
-  for i in 1 .. array_length(stop_names,1) loop
-    insert into trip_stops (trip_id, stop_id, sort)
-    select tid, id, i from stops where name = stop_names[i];
+  perform _seed_trip('2026-11-21','Nordhessen-Tour', array['Warburg','Gudensberg','Hessisch Lichtenau','Eschwege']);
+
+  foreach d in array array['2027-03-06','2027-03-20','2027-04-17','2027-05-15','2027-06-19','2027-07-17','2027-08-21']::date[] loop
+    perform _seed_trip(d, 'Warburg-Tour', array['Warburg','Beverungen','Hann. Münden','Rosdorf','Gudensberg','Hessisch Lichtenau']);
   end loop;
-end $$;
+  foreach d in array array['2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24']::date[] loop
+    perform _seed_trip(d, 'Eichsfeld/Nordhessen-Tour', array['Lohfelden','Eschwege','Nordhausen','Worbis','Hessisch Lichtenau']);
+    perform _seed_trip(d, 'Hildesheim/Hameln-Tour', array['Hildesheim','Vechelde','Hameln','Hemmendorf','Coppenbrügge','Hemeringen','Alfeld','Eldagsen']);
+  end loop;
+  -- Eschwege jeden Samstag (27.02.–30.10.2027), außer an Tagen der Eichsfeld-Tour
+  for d in select g::date from generate_series('2027-02-27'::date, '2027-10-30'::date, interval '7 days') g loop
+    if d not in ('2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24') then
+      perform _seed_trip(d, 'Eschwege', array['Eschwege']);
+    end if;
+  end loop;
 
-select _seed_trip('2026-11-21','Nordhessen-Tour', array['Warburg','Gudensberg','Hessisch Lichtenau','Eschwege']);
-
-select _seed_trip(d::date, 'Warburg-Tour',
-  array['Warburg','Beverungen','Hann. Münden','Rosdorf','Gudensberg','Hessisch Lichtenau'])
-from unnest(array['2027-03-06','2027-03-20','2027-04-17','2027-05-15','2027-06-19','2027-07-17','2027-08-21']) d;
-
-select _seed_trip(d::date, 'Eichsfeld/Nordhessen-Tour',
-  array['Lohfelden','Eschwege','Nordhausen','Worbis','Hessisch Lichtenau'])
-from unnest(array['2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24']) d;
-
-select _seed_trip(d::date, 'Hildesheim/Hameln-Tour',
-  array['Hildesheim','Vechelde','Hameln','Hemmendorf','Coppenbrügge','Hemeringen','Alfeld','Eldagsen'])
-from unnest(array['2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24']) d;
-
--- Eschwege jeden Samstag (27.02.–30.10.2027), außer an Tagen der Eichsfeld-Tour
-select _seed_trip(d::date, 'Eschwege', array['Eschwege'])
-from generate_series('2027-02-27'::date, '2027-10-30'::date, interval '7 days') d
-where d::date not in ('2027-02-27','2027-03-13','2027-03-27','2027-04-10','2027-04-24');
+  update trip_stops ts set stop_time = '06:40' from stops s where s.id = ts.stop_id and s.name = 'Lohfelden';
+  update trip_stops ts set stop_time = '11:00' from stops s, trips t
+    where s.id = ts.stop_id and t.id = ts.trip_id and s.name = 'Hessisch Lichtenau' and t.name = 'Warburg-Tour';
+  update trip_stops ts set stop_time = '14:00' from stops s, trips t
+    where s.id = ts.stop_id and t.id = ts.trip_id and s.name = 'Hessisch Lichtenau' and t.name = 'Eichsfeld/Nordhessen-Tour';
+end $seed$;
 
 drop function _seed_trip(date, text, text[]);
-
--- Haltezeiten, die bekannt sind
-update trip_stops ts set stop_time = '06:40' from stops s where s.id = ts.stop_id and s.name = 'Lohfelden';
-update trip_stops ts set stop_time = '11:00' from stops s, trips t
-  where s.id = ts.stop_id and t.id = ts.trip_id and s.name = 'Hessisch Lichtenau' and t.name = 'Warburg-Tour';
-update trip_stops ts set stop_time = '14:00' from stops s, trips t
-  where s.id = ts.stop_id and t.id = ts.trip_id and s.name = 'Hessisch Lichtenau' and t.name = 'Eichsfeld/Nordhessen-Tour';
-

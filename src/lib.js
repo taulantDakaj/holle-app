@@ -22,7 +22,8 @@ export function fmtDateTime(ts) {
 }
 export function fmtPrice(p) {
   if (p === null || p === undefined || p === '') return '';
-  return Number(p).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  const n = Number(p);
+  return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: Number.isInteger(n) ? 0 : 2 });
 }
 export function todayISO() {
   const d = new Date();

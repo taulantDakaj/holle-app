@@ -26,8 +26,14 @@ export default function Shop() {
 
   const byCat = useMemo(() => groupBy(data?.products || [], (p) => p.category), [data]);
   const trip = data?.trips?.find((t) => String(t.id) === String(tripId));
-  const chosen = (data?.products || []).filter((p) => qty[p.id] > 0);
-  const total = chosen.reduce((s, p) => s + qty[p.id], 0);
+  // Auswahl: Schlüssel "12" = Henne/Stück, "12h" = Hahn
+  const chosen = [];
+  for (const p of data?.products || []) {
+    if (qty[p.id] > 0) chosen.push({ p, key: String(p.id), hahn: false, n: qty[p.id], label: p.name });
+    if (qty[p.id + 'h'] > 0) chosen.push({ p, key: p.id + 'h', hahn: true, n: qty[p.id + 'h'], label: p.name + ' (Hahn)' });
+  }
+  const total = chosen.reduce((s, c) => s + c.n, 0);
+  const catCount = (items) => items.reduce((s, p) => s + (qty[p.id] || 0) + (qty[p.id + 'h'] || 0), 0);
 
   const setQ = (id, v) => setQty((q) => ({ ...q, [id]: Math.max(0, Math.min(999, v || 0)) }));
   const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -49,7 +55,7 @@ export default function Shop() {
       pickup_type: pickupType,
       trip_stop_id: pickupType === 'tour' ? tripStopId : null,
       pickup_date: pickupType === 'rietberg' ? pickupDate : null,
-      items: chosen.map((p) => ({ product_id: p.id, qty: qty[p.id] })),
+      items: chosen.map((c) => ({ product_id: c.p.id, qty: c.n, hahn: c.hahn })),
     };
     const { data: res, error } = await supabase.rpc('submit_order', { p: payload });
     setSending(false);
@@ -57,7 +63,7 @@ export default function Shop() {
     const stop = trip?.stops.find((s) => String(s.trip_stop_id) === String(tripStopId));
     setDone({
       ...res,
-      summary: chosen.map((p) => `${qty[p.id]}× ${p.name}`).join('\n'),
+      summary: chosen.map((c) => `${c.n}× ${c.label}`).join('\n'),
       where: pickupType === 'tour'
         ? `${stop?.name}, ${fmtDate(trip?.date)}${stop?.time ? ', ' + stop.time + ' Uhr' : ''}`
         : `Rietberg, Wunschtermin ${fmtDate(pickupDate)}`,
@@ -92,29 +98,26 @@ export default function Shop() {
         <form onSubmit={submit}>
           <section className="card">
             <h2><span className="num">1</span> Tiere auswählen</h2>
-            {[...byCat.entries()].map(([cat, items]) => (
-              <details key={cat} className="cat" open={cat === 'Legehybriden'}>
+            {[...byCat.entries()].map(([cat, items], ci) => (
+              <details key={cat} className="cat" open={ci === 0}>
                 <summary>
                   {cat}
-                  {items.some((p) => qty[p.id] > 0) && (
-                    <span className="pill">{items.reduce((s, p) => s + (qty[p.id] || 0), 0)}</span>
-                  )}
+                  {catCount(items) > 0 && <span className="pill">{catCount(items)}</span>}
                 </summary>
                 {items.map((p) => (
                   <div className="prod" key={p.id}>
                     <div className="pinfo">
                       <div className="pname">{p.name}</div>
-                      <div className="pmeta">
-                        {p.price ? fmtPrice(p.price) + ' / Stück' : p.price_note || 'Preis auf Anfrage'}
-                        {p.price && p.price_note ? ' · ' + p.price_note : ''}
-                        {!p.price && p.note ? ' · ' + p.note : p.price && p.note ? ' · ' + p.note : ''}
-                      </div>
+                      {p.note && <div className="pmeta">{p.note}</div>}
                     </div>
-                    <div className="stepper">
-                      <button type="button" onClick={() => setQ(p.id, (qty[p.id] || 0) - 1)} aria-label="weniger">−</button>
-                      <input inputMode="numeric" value={qty[p.id] || ''} placeholder="0"
-                        onChange={(e) => setQ(p.id, parseInt(e.target.value.replace(/\D/g, ''), 10))} />
-                      <button type="button" onClick={() => setQ(p.id, (qty[p.id] || 0) + 1)} aria-label="mehr">+</button>
+                    <div className="variants">
+                      <Variant label={p.price_hahn ? 'Henne' : ''}
+                        price={p.price ? fmtPrice(p.price) : p.price_note || 'auf Anfrage'}
+                        value={qty[p.id]} onChange={(v) => setQ(p.id, v)} />
+                      {p.price_hahn && (
+                        <Variant label="Hahn" price={fmtPrice(p.price_hahn)}
+                          value={qty[p.id + 'h']} onChange={(v) => setQ(p.id + 'h', v)} />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -192,6 +195,20 @@ export default function Shop() {
         </form>
       )}
     </Page>
+  );
+}
+
+function Variant({ label, price, value, onChange }) {
+  return (
+    <div className="variant">
+      <div className="vlabel">{label && <b>{label} </b>}<span>{price}</span></div>
+      <div className="stepper">
+        <button type="button" onClick={() => onChange((value || 0) - 1)} aria-label={'weniger ' + label}>−</button>
+        <input inputMode="numeric" value={value || ''} placeholder="0" aria-label={'Anzahl ' + label}
+          onChange={(e) => onChange(parseInt(e.target.value.replace(/\D/g, ''), 10))} />
+        <button type="button" onClick={() => onChange((value || 0) + 1)} aria-label={'mehr ' + label}>+</button>
+      </div>
+    </div>
   );
 }
 

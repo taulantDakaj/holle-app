@@ -74,6 +74,10 @@ details.cat[open] summary::after { content: '▾'; }
 .pill { background: var(--red); color: #fff; border-radius: 99px; padding: 0 8px; font-size: .8rem; }
 .prod { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-top: 1px dashed var(--line); }
 .pinfo { flex: 1; min-width: 0; }
+.variants { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.variant { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.vlabel { font-size: .8rem; color: var(--muted); text-align: right; line-height: 1.2; max-width: 92px; }
+.vlabel b { color: var(--ink); font-weight: 600; display: block; }
 .pname { font-weight: 600; }
 .pmeta { font-size: .8rem; color: var(--muted); }
 .stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; flex: none; }

@@ -245,7 +245,9 @@ function OrderForm({ order, products, trips, reload, onClose, user }) {
   });
   const [items, setItems] = useState(
     order.order_items?.length
-      ? order.order_items.map((i) => ({ product_id: i.product_id ? String(i.product_id) : '', name: i.product_name, qty: i.qty, unit_price: i.unit_price ?? '' }))
+      ? order.order_items.map((i) => ({
+          product_id: i.product_id ? String(i.product_id) + (i.product_name.endsWith('(Hahn)') ? 'h' : '') : '',
+          name: i.product_name, qty: i.qty, unit_price: i.unit_price ?? '' }))
       : [{ product_id: '', name: '', qty: 1, unit_price: '' }]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -257,9 +259,14 @@ function OrderForm({ order, products, trips, reload, onClose, user }) {
   function setItem(i, patch) {
     setItems((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   }
-  function pickProduct(i, id) {
-    const p = products.find((x) => String(x.id) === id);
-    setItem(i, { product_id: id, name: p?.name || '', unit_price: p?.price ?? '' });
+  function pickProduct(i, key) {
+    const hahn = key.endsWith('h');
+    const p = products.find((x) => String(x.id) === key.replace('h', ''));
+    setItem(i, {
+      product_id: key,
+      name: p ? p.name + (hahn ? ' (Hahn)' : '') : '',
+      unit_price: (hahn ? p?.price_hahn : p?.price) ?? '',
+    });
   }
 
   async function save(e) {
@@ -291,7 +298,7 @@ function OrderForm({ order, products, trips, reload, onClose, user }) {
       if (d.error) { setBusy(false); return setErr(d.error.message); }
     }
     const { error } = await supabase.from('order_items').insert(its.map((i) => {
-      const p = products.find((x) => String(x.id) === i.product_id);
+      const p = products.find((x) => String(x.id) === String(i.product_id).replace('h', ''));
       return {
         order_id: id, product_id: p ? p.id : null, product_name: i.name, category: p?.category || null,
         qty: Number(i.qty), unit_price: i.unit_price === '' ? null : Number(i.unit_price),
@@ -338,7 +345,10 @@ function OrderForm({ order, products, trips, reload, onClose, user }) {
               <option value="">{it.name && !it.product_id ? it.name : 'Tier wählen …'}</option>
               {[...byCat.entries()].map(([cat, ps]) => (
                 <optgroup key={cat} label={cat}>
-                  {ps.map((p) => <option key={p.id} value={p.id}>{p.name}{p.available ? '' : ' (nicht verfügbar)'}</option>)}
+                  {ps.flatMap((p) => [
+                    <option key={p.id} value={p.id}>{p.name}{p.price_hahn ? ' – Henne' : ''}{p.available ? '' : ' (nicht verfügbar)'}</option>,
+                    p.price_hahn ? <option key={p.id + 'h'} value={p.id + 'h'}>{p.name} – Hahn</option> : null,
+                  ])}
                 </optgroup>
               ))}
             </select>
@@ -473,7 +483,7 @@ function TripPlan({ trips, orders }) {
 
 /* ---------------------------------------------------------------- Sortiment */
 function Products({ products, reload }) {
-  const [nf, setNf] = useState({ category: 'Legehybriden', name: '', price: '' });
+  const [nf, setNf] = useState({ category: 'Hybrid-Legehennen', name: '', price: '' });
   const cats = [...new Set(products.map((p) => p.category))];
   async function patch(id, data) {
     const { error } = await supabase.from('products').update(data).eq('id', id);
@@ -491,7 +501,7 @@ function Products({ products, reload }) {
   }
   return (
     <>
-      <p className="muted pad">Nur Tiere mit grünem Schalter sehen Kunden in der Bestell-App. Preis leer lassen = „Preis auf Anfrage“.</p>
+      <p className="muted pad">Nur Tiere mit grünem Schalter sehen Kunden in der Bestell-App. Erstes Feld = Preis Henne bzw. Stück (leer = Text aus „Hinweis“ oder „auf Anfrage“), zweites Feld = Preis Hahn (leer = keine Hähne bestellbar).</p>
       {[...groupBy(products, (p) => p.category).entries()].map(([cat, ps]) => (
         <div className="card" key={cat}>
           <h3>{cat}</h3>
@@ -502,7 +512,8 @@ function Products({ products, reload }) {
                 <span />
               </label>
               <div className={'pn' + (p.available ? '' : ' off')}>{p.name}</div>
-              <PriceInput value={p.price} onSave={(v) => patch(p.id, { price: v })} />
+              <PriceInput value={p.price} placeholder={p.price_hahn ? 'Henne €' : '€'} onSave={(v) => patch(p.id, { price: v })} />
+              <PriceInput value={p.price_hahn} placeholder="Hahn €" onSave={(v) => patch(p.id, { price_hahn: v })} />
               <NoteInput value={p.price_note} onSave={(v) => patch(p.id, { price_note: v })} />
             </div>
           ))}
@@ -522,11 +533,11 @@ function Products({ products, reload }) {
   );
 }
 
-function PriceInput({ value, onSave }) {
+function PriceInput({ value, onSave, placeholder = '€' }) {
   const [v, setV] = useState(value ?? '');
   useEffect(() => setV(value ?? ''), [value]);
   return (
-    <input className="price" inputMode="decimal" placeholder="€" value={v}
+    <input className="price" inputMode="decimal" placeholder={placeholder} value={v}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => {
         const n = String(v).trim() === '' ? null : Number(String(v).replace(',', '.'));
