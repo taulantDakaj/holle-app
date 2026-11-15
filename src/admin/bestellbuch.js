@@ -665,8 +665,12 @@ function abholText(o){
 }
 function bestaetigungText(o){
   const vn=(o.kunde||"").split(" ")[0];
+  const pos=(o.positionen||[]).filter(p=>p.tier&&+p.anzahl);
+  const ohne=pos.some(p=>p.preis==null||p.preis===""), summe=betrag(o);
+  const zeile=p=>`• ${p.anzahl} × ${p.tier}`+(p.preis!=null&&p.preis!==""?` à ${eur(+p.preis)} = ${eur(+p.anzahl*+p.preis)}`:" (Preis folgt)");
+  const gesamt=summe?`\n\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Preis folgt":""}`:"";
   return `Hallo ${vn}, deine Bestellung bei Geflügelverkauf Holle ist bestätigt:\n`+
-    (o.positionen||[]).map(p=>`• ${p.anzahl} × ${p.tier}`).join("\n")+
+    pos.map(zeile).join("\n")+gesamt+
     `\n\nAbholung: ${abholText(o)}\nBezahlung bei Abholung (bar, PayPal oder Überweisung).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.\n\n${SHOP_WA_TEXT_GRUSS}`;
 }
 const waLinkOrder=o=>`https://wa.me/${waNum(o.telefon)}?text=${encodeURIComponent(bestaetigungText(o))}`;
