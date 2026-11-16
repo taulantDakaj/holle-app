@@ -1429,3 +1429,28 @@ $("#ki-go").onclick=async()=>{
   }catch(e){toast("Import fehlgeschlagen: "+(e.message||e))}
   $("#ki-go").disabled=false;
 };
+
+/* ---------- Fahrer-Zugänge ---------- */
+const ROLLE=window.__holle.rolle||"admin";
+if(ROLLE==="fahrer"){ showTab("fahrer"); }
+async function ladeFahrer(){
+  const box=$("#fz-list"); if(!box||ROLLE!=="admin") return;
+  const {data}=await SB.from("staff").select("email,name,role").eq("role","fahrer").order("email");
+  box.innerHTML=(data||[]).map(f=>`<div class="kitem"><div class="kl"><b>${esc(f.name||"Fahrer")}</b> <span class="sub">${esc(f.email)}</span></div>
+    <div class="kr"><button class="btn warn" type="button" data-fzx="${esc(f.email)}">Zugang löschen</button></div></div>`).join("")||`<p class="sub">Noch kein Fahrer-Zugang.</p>`;
+  box.querySelectorAll("[data-fzx]").forEach(b=>b.onclick=async()=>{
+    if(!confirm(`Zugang ${b.dataset.fzx} löschen? Der Fahrer kann sich dann nicht mehr anmelden.`)) return;
+    const {error}=await SB.rpc("fahrer_entfernen",{p_email:b.dataset.fzx}); toast(error?error.message:"Zugang gelöscht"); ladeFahrer();
+  });
+}
+$("#fz-add").onclick=async()=>{
+  const {error}=await SB.rpc("fahrer_anlegen",{p_email:$("#fz-email").value,p_passwort:$("#fz-pw").value,p_name:$("#fz-name").value});
+  if(error){toast(error.message);return}
+  const login=new URL("./admin.html",location.href).href, mail=$("#fz-email").value.trim().toLowerCase(), pw=$("#fz-pw").value;
+  toast("Zugang angelegt");
+  const t=`Hallo ${$("#fz-name").value.trim()}, dein Zugang für die Holle-Fahrer-App:\n${login}\nE-Mail: ${mail}\nPasswort: ${pw}\n\nTipp: Seite im Safari öffnen → Teilen → „Zum Home-Bildschirm“.`;
+  if(navigator.share){try{await navigator.share({text:t})}catch(e){}} else {try{await navigator.clipboard.writeText(t);toast("Zugangsdaten kopiert")}catch(e){}}
+  $("#fz-pw").value=""; ladeFahrer();
+};
+if(ROLLE!=="admin"){const s=$("#fz-add")?.closest("section");document.querySelectorAll("#fz-name,#fz-email,#fz-pw,#fz-add").forEach(e=>e.disabled=true)}
+ladeFahrer();

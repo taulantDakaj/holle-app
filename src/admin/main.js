@@ -130,7 +130,9 @@ async function waitForLogin() {
     return;
   }
   const db = makeDb();
-  window.__holle = { supabase, user: session.user, db };
+  const ich = staff.find((x) => (x.email || '').toLowerCase() === (session.user.email || '').toLowerCase()) || staff[0];
+  window.__holle = { supabase, user: session.user, db, rolle: ich.role };
+  if (ich.role === 'fahrer') document.body.classList.add('rolle-fahrer');
   window.claude = { use: async (name) => (name === 'db' ? db : null) };
   $('#app').hidden = false;
   $('#who').textContent = session.user.email;

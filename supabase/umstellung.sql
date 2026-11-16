@@ -393,3 +393,81 @@ begin
     execute replace(d, $x$'datum', v_datum);$x$, $x$'datum', v_datum, 'id', v_id);$x$);
   end if;
 end $do$;
+-- ---------- Fahrer-Zugang: sieht nur Bestellungen (Tab „Fahrer“) ----------
+alter table staff drop constraint if exists staff_role_check;
+alter table staff add constraint staff_role_check check (role in ('admin','mitarbeiter','fahrer'));
+
+create or replace function is_staff() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from staff where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and role <> 'fahrer');
+$$;
+create or replace function is_fahrer() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from staff where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and role = 'fahrer');
+$$;
+create or replace function is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from staff where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and role = 'admin');
+$$;
+revoke execute on function is_fahrer() from public, anon;
+revoke execute on function is_admin() from public, anon;
+grant execute on function is_fahrer() to authenticated;
+grant execute on function is_admin() to authenticated;
+
+drop policy if exists fahrer_read on bb_docs;
+create policy fahrer_read on bb_docs for select to authenticated using (is_fahrer() and coll in ('orders','einstellungen'));
+drop policy if exists fahrer_update on bb_docs;
+create policy fahrer_update on bb_docs for update to authenticated
+  using (is_fahrer() and coll = 'orders') with check (is_fahrer() and coll = 'orders');
+drop policy if exists staff_self on staff;
+create policy staff_self on staff for select to authenticated using (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')));
+
+-- Admin legt Fahrer-Zugänge in der App an (E-Mail muss kein echtes Postfach sein)
+create or replace function fahrer_anlegen(p_email text, p_passwort text, p_name text default '') returns json
+language plpgsql security definer set search_path = public, extensions as $$
+declare v_email text := lower(trim(p_email)); v_id uuid; v_inst uuid;
+begin
+  if not is_admin() then raise exception 'Nur der Admin darf Zugänge anlegen.'; end if;
+  if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Bitte eine gültige E-Mail-Adresse angeben.'; end if;
+  if length(coalesce(p_passwort,'')) < 8 then raise exception 'Das Passwort braucht mindestens 8 Zeichen.'; end if;
+  if exists (select 1 from staff where lower(email) = v_email and role <> 'fahrer') then
+    raise exception 'Diese E-Mail gehört schon zu einem Admin/Mitarbeiter.'; end if;
+  select id into v_id from auth.users where lower(email) = v_email;
+  if v_id is null then
+    select instance_id into v_inst from auth.users limit 1;
+    v_id := gen_random_uuid();
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current,
+      phone_change, phone_change_token, reauthentication_token,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+    values (coalesce(v_inst, '00000000-0000-0000-0000-000000000000'), v_id, 'authenticated', 'authenticated', v_email,
+      crypt(p_passwort, gen_salt('bf')), now(), '', '', '', '', '', '', '', '',
+      '{"provider":"email","providers":["email"]}', jsonb_build_object('name', p_name), now(), now());
+    insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (v_id::text, v_id, jsonb_build_object('sub', v_id::text, 'email', v_email, 'email_verified', true), 'email', now(), now(), now());
+  else
+    update auth.users set encrypted_password = crypt(p_passwort, gen_salt('bf')), email_confirmed_at = coalesce(email_confirmed_at, now()),
+      banned_until = null, updated_at = now() where id = v_id;
+  end if;
+  insert into staff (email, name, role) values (v_email, nullif(trim(p_name),''), 'fahrer')
+    on conflict (email) do update set role = 'fahrer', name = coalesce(nullif(trim(excluded.name),''), staff.name);
+  return json_build_object('ok', true, 'email', v_email);
+end $$;
+
+create or replace function fahrer_entfernen(p_email text) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_email text := lower(trim(p_email));
+begin
+  if not is_admin() then raise exception 'Nur der Admin darf Zugänge entfernen.'; end if;
+  if not exists (select 1 from staff where lower(email) = v_email and role = 'fahrer') then raise exception 'Kein Fahrer-Zugang.'; end if;
+  delete from staff where lower(email) = v_email and role = 'fahrer';
+  delete from auth.users where lower(email) = v_email;
+  return json_build_object('ok', true);
+end $$;
+revoke all on function fahrer_anlegen(text, text, text) from public, anon;
+revoke all on function fahrer_entfernen(text) from public, anon;
+grant execute on function fahrer_anlegen(text, text, text) to authenticated;
+grant execute on function fahrer_entfernen(text) to authenticated;
+-- Speichern läuft als Upsert, dafür braucht der Fahrer auch das Insert-Recht auf Bestellungen
+drop policy if exists fahrer_insert on bb_docs;
+create policy fahrer_insert on bb_docs for insert to authenticated with check (is_fahrer() and coll = 'orders');

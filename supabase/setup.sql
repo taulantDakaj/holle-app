@@ -6,7 +6,7 @@
 create table if not exists staff (
   email      text primary key,
   name       text,
-  role       text not null default 'mitarbeiter' check (role in ('admin','mitarbeiter')),
+  role       text not null default 'mitarbeiter' check (role in ('admin','mitarbeiter','fahrer')),
   created_at timestamptz not null default now()
 );
 

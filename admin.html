@@ -330,6 +330,16 @@
     <label class="full" style="margin-top:8px">Fußzeile der Quittung (z. B. Steuerhinweis, Bankverbindung)<textarea id="fi-fuss" rows="2"></textarea></label>
     <div class="actions" style="margin-top:8px"><button class="btn ghost" type="button" id="fi-save">Speichern</button></div>
 
+    <div class="section-h">Fahrer-Zugänge</div>
+    <p class="hint" style="margin-top:0">Ein Fahrer sieht nur den Tab „Fahrer“: die Kunden seiner Tour, Navi und Kassieren. Keine Kundenkartei, keine Auswertung, keine Einstellungen. Die E-Mail muss kein echtes Postfach sein, z. B. fahrer1@gefluegelverkauf-holle.de.</p>
+    <div class="grid">
+      <label>Name<input id="fz-name" placeholder="z. B. Marco"></label>
+      <label>E-Mail (Benutzername)<input id="fz-email" type="email" autocomplete="off" placeholder="fahrer1@gefluegelverkauf-holle.de"></label>
+      <label>Passwort (mind. 8 Zeichen)<input id="fz-pw" autocomplete="new-password"></label>
+    </div>
+    <div class="actions" style="margin-top:8px"><button class="btn" type="button" id="fz-add">Zugang anlegen</button><span class="hint">Gleiche E-Mail nochmal = neues Passwort.</span></div>
+    <div id="fz-list" style="margin-top:8px"></div>
+
     <div class="section-h">Benachrichtigung aufs Handy</div>
     <p class="hint" style="margin-top:0">Bei jeder neuen Kunden-Bestellung kommt eine Nachricht über deinen Telegram-Bot.</p>
     <div class="actions" style="margin-top:6px">
