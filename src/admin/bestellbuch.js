@@ -166,7 +166,7 @@ $("#form").addEventListener("submit",async e=>{
 
 /* ---------- Tabs ---------- */
 function showTab(id){document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id));
-  ["neu","liste","kunden","kasse","erinnern","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
+  ["neu","liste","kunden","kasse","fahrer","erinnern","bedarf","bestell","lade","fahr","nach","zahlen","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------- Filter / Auswahl ---------- */
@@ -643,7 +643,7 @@ function renderAll(){
   { const sel=$("#l-datum"),cur=sel.value,ds=[...new Set(orders.filter(o=>istAlt(o)===listArchiv).map(o=>o.datum).filter(Boolean))].sort();
     if(listArchiv) ds.reverse();
     sel.innerHTML=`<option value="">Alle Termine</option>`+ds.map(d=>`<option value="${d}">${esc(dLong(d))}</option>`).join(""); sel.value=ds.includes(cur)?cur:""; }dateOptions($("#p-datum"),false);
-  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderKasse();renderErinnern();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
+  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderKasse();renderErinnern();renderNachrichten();renderFahrer();renderZahlen();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
 }
 resetForm();renderAll();
 try{const t=localStorage.getItem("holle-tab");if(t)showTab(t)}catch(e){}
@@ -671,7 +671,8 @@ function bestaetigungText(o){
   const gesamt=summe?`\n\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Preis folgt":""}`:"";
   return `Hallo ${vn}, deine Bestellung bei Geflügelverkauf Holle ist bestätigt:\n`+
     pos.map(zeile).join("\n")+gesamt+
-    `\n\nAbholung: ${abholText(o)}\nBezahlung bei Abholung (bar, PayPal oder Überweisung).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.\n\n${SHOP_WA_TEXT_GRUSS}`;
+    `\n\nAbholung: ${abholText(o)}\nBezahlung bei Abholung (bar, PayPal oder Überweisung).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.`+
+    (orderLink(o)?`\nDeine Bestellung ansehen oder absagen: ${orderLink(o)}`:"")+`\n\n${SHOP_WA_TEXT_GRUSS}`;
 }
 const waLinkOrder=o=>`https://wa.me/${waNum(o.telefon)}?text=${encodeURIComponent(bestaetigungText(o))}`;
 async function bestaetige(id){
@@ -865,7 +866,8 @@ function kundenListe(){
     const info=kundenInfo[c.key]||{};
     return {...c,orders:os,name:last.kunde,telefon:os.find(o=>o.telefon)?.telefon||"",wohnort:os.find(o=>o.wohnort)?.wohnort||"",
       anzahl:act.length,tiere:act.reduce((a,o)=>a+stueck(o),0),umsatz:act.reduce((a,o)=>a+betrag(o),0),letzte:last.datum,info,...stempel(os,info)};
-  });
+  }).concat(Object.entries(kundenInfo||{}).filter(([k,i])=>i.kontakt&&i.telefon&&!m.has(k)).map(([k,i])=>
+    ({key:k,orders:[],name:i.name||i.telefon,telefon:i.telefon,wohnort:i.wohnort||"",anzahl:0,tiere:0,umsatz:0,letzte:"",info:i,kontaktNur:true,...stempel([],i)})));
 }
 function stempel(os,info){
   if(!info.karte||info.gewerbe) return {stempel:0,frei:0};
@@ -893,6 +895,7 @@ function renderKunden(){
   if(f==="karte") ks=ks.filter(k=>k.info.karte&&!k.info.gewerbe);
   if(f==="gratis") ks=ks.filter(k=>k.frei>0);
   if(f==="stamm") ks=ks.filter(k=>k.anzahl>=3);
+  if(f==="kontakt") ks=ks.filter(k=>k.kontaktNur);
   ks.sort((a,b)=>b.frei-a.frei||(b.letzte||"").localeCompare(a.letzte||"")||a.name.localeCompare(b.name,"de"));
   tb.innerHTML=`<thead><tr><th>Kunde</th><th class="num">Bestellungen</th><th class="num">Tiere</th><th class="num">Umsatz</th><th>Zuletzt</th><th>Stempelkarte</th></tr></thead><tbody>`+
     (ks.length?ks.slice(0,300).map(k=>`<tr class="row" data-k="${esc(k.key)}" tabindex="0"><td><b>${esc(k.name)}</b><br><span class="sub">${esc(k.telefon)}${k.wohnort?" · "+esc(k.wohnort):""}</span></td>
@@ -922,6 +925,8 @@ function renderKundeDetail(){
         <button class="btn warn" type="button" id="k-aus">Karte beenden</button></div>`:
       `<p class="sub">Noch keine Stempelkarte. Richte sie ein, wenn der Kunde danach fragt.</p>
        <div class="btns"><button class="btn" type="button" id="k-an">Stempelkarte einrichten</button><button class="btn ghost" type="button" id="k-gew">Gewerbe / Mobilstall</button></div>`}
+    <div class="btns" style="margin-top:8px"><button class="btn ghost" type="button" id="k-stop">${k.info.keineRund?"✓ Keine Rundnachrichten (aufheben)":"Keine Rundnachrichten"}</button>
+      ${k.kontaktNur?'<button class="btn warn" type="button" id="k-del">Aus Kartei entfernen</button>':""}</div>
     <div class="section-h">Bestellungen</div>
     <div class="tablewrap"><table class="list"><tbody>${k.orders.map(o=>{const tr=tourById(o.tour);return `<tr class="row" data-id="${esc(o.id)}"><td style="white-space:nowrap">${esc(dShort(o.datum))}</td><td>${esc(tr?tr.nr:o.tour)} · ${esc(o.ort)}</td><td>${esc(tierText(o,", "))}</td><td class="num">${betrag(o)?esc(eur(betrag(o))):""}</td><td><span class="chip ${esc(o.status)}">${esc(o.status||"offen")}</span></td></tr>`}).join("")}</tbody></table></div>
   </div>`;
@@ -934,6 +939,8 @@ function renderKundeDetail(){
   on("#k-gew0",()=>saveKunde(k.key,{gewerbe:false}));
   on("#k-einl",()=>confirm("Gratis-Huhn als eingelöst eintragen?")&&saveKunde(k.key,{eingeloest:(+k.info.eingeloest||0)+1}));
   on("#k-bild",()=>openCard(k));
+  on("#k-stop",()=>saveKunde(k.key,{keineRund:!k.info.keineRund,name:k.name,telefon:k.telefon}));
+  on("#k-del",async()=>{if(!confirm(k.name+" aus der Kartei entfernen?"))return;try{await window.__holle.db.doc("kunden/"+k.key).delete();kSel=null;toast("Entfernt")}catch(e){toast("Hat nicht geklappt.")}});
   on("#k-neu",()=>{resetForm();$("#f-kunde").value=k.name;$("#f-tel").value=k.telefon;$("#f-wohnort").value=k.wohnort;showTab("neu");window.scrollTo({top:0,behavior:"smooth"})});
 }
 ["#k-q","#k-f"].forEach(s=>$(s).addEventListener("input",renderKunden));
@@ -1016,10 +1023,10 @@ function kaSummen(os){
   os.forEach(o=>{if(o.zahlung&&ZART[o.zahlung.art]) s[o.zahlung.art]+=+o.zahlung.betrag||0; else {s.offen+=betrag(o);s.offenN++}});
   s.summe=s.bar+s.paypal+s.ueberweisung; return s;
 }
-async function kaZahlung(id,art){
+async function kaZahlung(id,art,b0){
   const o=orders.find(x=>x.id===id); if(!o) return;
   const inp=document.querySelector(`[data-kbetrag="${CSS.escape(id)}"]`);
-  const b=num(inp?inp.value:betrag(o));
+  const b=num(b0!==undefined?b0:inp?inp.value:betrag(o));
   if(art&&(b===undefined||b===null)){toast("Bitte den kassierten Betrag eintragen.");inp&&inp.focus();return}
   const {id:_,...rest}=o, now=new Date().toISOString();
   const upd={...rest,updated:now};
@@ -1037,7 +1044,7 @@ function renderKasse(){
   const os=alle.filter(o=>!ortSel.value||o.ort===ortSel.value).sort((a,b)=>(a.zahlung?1:0)-(b.zahlung?1:0)||a.ort.localeCompare(b.ort,"de")||a.kunde.localeCompare(b.kunde,"de"));
   const s=kaSummen(alle), abg=kasseDocs[d];
   $("#ka-kpis").innerHTML=`<div class="kpi"><b>${esc(eur(s.bar))}</b><span>Bar</span></div><div class="kpi"><b>${esc(eur(s.paypal))}</b><span>PayPal</span></div><div class="kpi"><b>${esc(eur(s.ueberweisung))}</b><span>Überweisung</span></div><div class="kpi"><b>${s.offenN}</b><span>noch offen${s.offen?" · "+esc(eur(s.offen)):""}</span></div>`;
-  $("#ka-list").innerHTML=os.length?os.map(o=>{const z=o.zahlung;return `<div class="kitem${z?" bezahlt":""}">
+  $("#ka-list").innerHTML=os.length?os.map(o=>{const z=o.zahlung;return `<div class="kitem${z?" bezahlt":""}" data-oid="${esc(o.id)}">
       <div class="kl"><span class="odot" style="background:${ortFarbe(o.ort)}"></span><b>${esc(o.kunde)}</b> <span class="sub">${esc(o.ort)}</span>
         <div class="sub">${esc(tierText(o,", "))}</div></div>
       ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span>
@@ -1100,7 +1107,8 @@ function erinnerungText(o){
     `${heute?"Heute ist es so weit":morgen?"Morgen ist es so weit":"Bald ist es so weit"} – Abholung: ${abholText(o)}\n\n`+
     `Deine Bestellung:\n`+pos.map(p=>`• ${p.anzahl} × ${p.tier}`).join("\n")+
     (summe?`\nGesamt: ${eur(summe)}`:"")+
-    `\n\nBezahlung vor Ort bar, PayPal oder Überweisung. Falls du nicht kommen kannst, gib bitte kurz Bescheid.\nBis dann!`;
+    `\n\nBezahlung vor Ort bar, PayPal oder Überweisung. Falls du nicht kommen kannst, gib bitte kurz Bescheid`+
+    (orderLink(o)?` oder sag hier ab: ${orderLink(o)}`:".")+`\nBis dann!`;
 }
 function renderErinnern(){
   const dSel=$("#er-datum"); if(!dSel) return;
@@ -1130,3 +1138,294 @@ function renderErinnern(){
   }));
 }
 ["#er-datum","#er-ort"].forEach(s=>$(s).addEventListener("change",renderErinnern));
+
+/* =====================================================================
+   Kunden-Link, Firma, Nachrichten (Warteliste, Rundnachricht, Bewertung),
+   Fahrer-Ansicht, Auswertung, Quittung, Kontakte-Import
+   ===================================================================== */
+function appBase(){return new URL("./",location.href).href}
+function orderLink(o){return o&&o.id&&String(o.id).length>=16?appBase()+"#/b/"+o.id:""}
+function vorname(n){return String(n||"").trim().split(/\s+/)[0]||""}
+
+/* ---------- Firma / Einstellungen ---------- */
+var FIRMA_STD={name:"Geflügelverkauf Holle",adresse:"Eberhard-Unkraut-Str. 76, 33397 Rietberg",tel:"0157 80267793",
+  google:"https://search.google.com/local/writereview?placeid=ChIJySyygQguukcRE0ze4HtAydE",fuss:""};
+var firma={...FIRMA_STD};
+function renderFirma(){[["name","#fi-name"],["adresse","#fi-adresse"],["tel","#fi-tel"],["google","#fi-google"],["fuss","#fi-fuss"]].forEach(([k,id])=>{const e=$(id);if(e&&document.activeElement!==e)e.value=firma[k]||""})}
+window.__holle.db.doc("einstellungen/firma").onSnapshot(d=>{firma={...FIRMA_STD,...((d.exists&&d.data())||{})};renderFirma()},()=>{});
+renderFirma();
+$("#fi-save").onclick=async()=>{
+  const v={name:$("#fi-name").value.trim(),adresse:$("#fi-adresse").value.trim(),tel:$("#fi-tel").value.trim(),google:$("#fi-google").value.trim(),fuss:$("#fi-fuss").value.trim()};
+  try{await window.__holle.db.doc("einstellungen/firma").set(v);toast("Gespeichert")}catch(e){toast("Speichern fehlgeschlagen.")}
+};
+
+/* ---------- Nachrichten: Bereiche ---------- */
+var nachSeg="tour";
+function setSeg(s){nachSeg=s;["tour","warte","rund","bewert"].forEach(x=>{$("#seg-"+x).hidden=x!==s});
+  document.querySelectorAll("#nach-seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.seg===s));
+  if(s==="warte") ladeWarteliste(); renderNachrichten();}
+document.querySelectorAll("#nach-seg button").forEach(b=>b.onclick=()=>setSeg(b.dataset.seg));
+function badge(id,n){const e=$(id);if(!e)return;e.textContent=n;e.hidden=!n}
+function renderNachrichten(){
+  if(!$("#rn-list")||!aktionen||!warteliste||!firma) return;
+  renderRund(); renderBewert(); renderWarteliste();
+  badge("#nach-n",bewertKandidaten().length+warteliste.filter(w=>!w.benachrichtigt).length);
+}
+
+/* ---------- Warteliste ---------- */
+var warteliste=[];
+async function ladeWarteliste(){
+  const {data,error}=await SB.from("warteliste").select("*").is("erledigt",null).order("created");
+  if(!error){warteliste=data||[];renderNachrichten()}
+}
+ladeWarteliste(); setInterval(ladeWarteliste,90000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)ladeWarteliste()});
+function warteText(w){
+  const p=products.find(x=>x.id===w.product_id), b=p&&p.bestand;
+  return `Hallo ${vorname(w.name)}, gute Nachricht von Geflügelverkauf Holle 🐔\n${w.tier} ${b?`ist wieder da (${b} Stück verfügbar)`:"ist wieder da"}. Du hattest ${w.anzahl} vorgemerkt.\n\nDu kannst jetzt hier bestellen: ${appBase()}\nOder antworte einfach auf diese Nachricht.\n\n${SHOP_WA_TEXT_GRUSS}`;
+}
+function renderWarteliste(){
+  const box=$("#wl-list"); if(!box) return;
+  badge("#wl-n",warteliste.filter(w=>!w.benachrichtigt).length);
+  if(!warteliste.length){box.innerHTML=`<p class="empty">Niemand auf der Warteliste.</p>`;return}
+  const g=new Map(); warteliste.forEach(w=>{if(!g.has(w.tier))g.set(w.tier,[]);g.get(w.tier).push(w)});
+  box.innerHTML=[...g.entries()].map(([tier,ws])=>{const p=products.find(x=>x.name===tier);
+    return `<div class="stop"><div class="stophead"><b>${esc(tier)}</b><span class="sub">${ws.reduce((a,w)=>a+w.anzahl,0)} Stück gewünscht · Bestand: ${p?(p.bestand==null?"unbegrenzt":p.bestand):"–"}</span></div>`+
+    ws.map(w=>`<div class="kitem${w.benachrichtigt?" bezahlt":""}"><div class="kl"><b>${esc(w.name)}</b> <span class="sub">${esc(w.telefon)} · ${w.anzahl} Stück · seit ${esc(new Date(w.created).toLocaleDateString("de-DE"))}</span>${w.bemerkung?`<div class="sub">💬 ${esc(w.bemerkung)}</div>`:""}</div>
+      <div class="kr"><a class="btn ${w.benachrichtigt?"ghost":"wa"}" target="_blank" rel="noopener" data-wl="${w.id}" href="https://wa.me/${esc(waNum(w.telefon))}?text=${encodeURIComponent(warteText(w))}">${w.benachrichtigt?"✓ Nochmal":"Bescheid geben"}</a>
+      <button class="btn ghost" type="button" data-wlx="${w.id}">Erledigt</button></div></div>`).join("")+`</div>`}).join("");
+  box.querySelectorAll("[data-wl]").forEach(a=>a.addEventListener("click",async()=>{
+    const w=warteliste.find(x=>x.id==a.dataset.wl); if(!w||w.benachrichtigt) return;
+    w.benachrichtigt=new Date().toISOString(); await SB.from("warteliste").update({benachrichtigt:w.benachrichtigt}).eq("id",w.id); renderNachrichten();
+  }));
+  box.querySelectorAll("[data-wlx]").forEach(b=>b.onclick=async()=>{
+    await SB.from("warteliste").update({erledigt:new Date().toISOString()}).eq("id",b.dataset.wlx);
+    warteliste=warteliste.filter(x=>x.id!=b.dataset.wlx); renderNachrichten();
+  });
+}
+
+/* ---------- Rundnachricht (z. B. Saisonstart) ---------- */
+var aktionen={};
+window.__holle.db.collection("aktionen").onSnapshot(s=>{aktionen={};s.docs.forEach(d=>aktionen[d.id]=d.data());renderRund()},()=>{});
+const RN_STD="Hallo {vorname}, hier ist Geflügelverkauf Holle 🐔\nAb März sind wir wieder mit unseren Touren für dich unterwegs – mit Junghennen, Rassehühnern, Enten und mehr.\n\nDu kannst ab sofort bequem vorbestellen: {link}\n\nViele Grüße\nGeflügelverkauf Holle";
+function rnKey(){return "rn-"+($("#rn-name").value.trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g,"-").replace(/^-|-$/g,"")||"aktion")}
+function rnText(k){return ($("#rn-text").value||RN_STD).replaceAll("{vorname}",vorname(k.name)).replaceAll("{link}",appBase())}
+$("#rn-name").addEventListener("change",()=>{const a=aktionen[rnKey()];$("#rn-text").value=(a&&a.text)||RN_STD;renderRund()});
+$("#rn-text").addEventListener("change",async()=>{const k=rnKey(),a=aktionen[k]||{};try{await window.__holle.db.doc("aktionen/"+k).set({...a,name:$("#rn-name").value.trim(),text:$("#rn-text").value})}catch(e){}});
+["#rn-f","#rn-ort"].forEach(s=>$(s).addEventListener("change",renderRund));
+function renderRund(){
+  const box=$("#rn-list"); if(!box||!aktionen) return;
+  const key=rnKey(), a=aktionen[key]||{}, ges=a.gesendet||{};
+  if(!$("#rn-text").value) $("#rn-text").value=a.text||RN_STD;
+  let ks=kundenListe().filter(k=>telKey(k.telefon)&&!k.info.keineRund);
+  const f=$("#rn-f").value;
+  if(f==="best") ks=ks.filter(k=>k.anzahl>0); if(f==="kontakt") ks=ks.filter(k=>k.kontaktNur); if(f==="stamm") ks=ks.filter(k=>k.anzahl>=3);
+  const letzterOrt=k=>(k.orders.find(o=>o.status!=="storniert")||{}).ort||"";
+  const oSel=$("#rn-ort"), oc=oSel.value, orte=[...new Set(ks.map(letzterOrt).filter(Boolean))].sort((x,y)=>x.localeCompare(y,"de"));
+  oSel.innerHTML=`<option value="">Alle</option>`+orte.map(o=>`<option${o===oc?" selected":""}>${esc(o)}</option>`).join("");
+  if(oSel.value) ks=ks.filter(k=>letzterOrt(k)===oSel.value);
+  ks.sort((x,y)=>(ges[x.key]?1:0)-(ges[y.key]?1:0)||x.name.localeCompare(y.name,"de"));
+  $("#rn-info").textContent=`${ks.filter(k=>ges[k.key]).length} von ${ks.length} angeschrieben.`;
+  box.innerHTML=ks.slice(0,400).map(k=>`<div class="kitem${ges[k.key]?" bezahlt":""}"><div class="kl"><b>${esc(k.name)}</b> <span class="sub">${esc(k.telefon)}${letzterOrt(k)?" · "+esc(letzterOrt(k)):k.kontaktNur?" · Kontakt":""}</span></div>
+    <div class="kr"><a class="btn ${ges[k.key]?"ghost":"wa"}" target="_blank" rel="noopener" data-rn="${esc(k.key)}" href="https://wa.me/${esc(telKey(k.telefon))}?text=${encodeURIComponent(rnText(k))}">${ges[k.key]?"✓ Nochmal":"Senden"}</a></div></div>`).join("")||`<p class="empty">Keine Kunden.</p>`;
+  box.querySelectorAll("[data-rn]").forEach(el=>el.addEventListener("click",async()=>{
+    const k=rnKey(),cur=aktionen[k]||{}; if((cur.gesendet||{})[el.dataset.rn]) return;
+    const neu={...cur,name:$("#rn-name").value.trim(),text:$("#rn-text").value,gesendet:{...(cur.gesendet||{}),[el.dataset.rn]:new Date().toISOString()}};
+    aktionen[k]=neu; renderRund(); try{await window.__holle.db.doc("aktionen/"+k).set(neu)}catch(e){toast("Speichern fehlgeschlagen.")}
+  }));
+}
+
+/* ---------- Google-Bewertung: nur auf Knopfdruck, frühestens 7 Tage nach Abholung ---------- */
+function bewertKandidaten(){
+  const heute=new Date(), bis=iso(new Date(heute-7*864e5)), ab=iso(new Date(heute-90*864e5));
+  const gefragt=new Set(orders.filter(o=>o.bewertung).map(kundeKey));
+  const m=new Map();
+  orders.filter(o=>o.status==="abgeholt"&&o.datum&&o.datum<=bis&&o.datum>=ab&&telKey(o.telefon)).forEach(o=>{
+    const k=kundeKey(o); if(gefragt.has(k)||(kundenInfo[k]||{}).gewerbe) return;
+    if(!m.has(k)||m.get(k).datum<o.datum) m.set(k,o);
+  });
+  return [...m.values()].sort((a,b)=>a.datum.localeCompare(b.datum));
+}
+function bewertText(o){
+  return `Hallo ${vorname(o.kunde)}, hier ist Geflügelverkauf Holle 🐔\nWir hoffen, deine Tiere haben sich gut eingelebt!\n\nWenn du zufrieden bist, würden wir uns riesig über eine kurze Google-Bewertung freuen – das hilft uns als Familienbetrieb sehr:\n${firma.google}\n\nDanke dir!\n${SHOP_WA_TEXT_GRUSS}`;
+}
+async function setBewertung(id,wert){const o=orders.find(x=>x.id===id);if(!o)return;const {id:_,...rest}=o;try{await saveOrder(id,{...rest,bewertung:wert})}catch(e){toast("Speichern fehlgeschlagen.")}}
+function renderBewert(){
+  const box=$("#bw-list"); if(!box) return;
+  const ks=bewertKandidaten(); badge("#bw-n",ks.length);
+  box.innerHTML=ks.map(o=>{const tage=Math.round((Date.now()-new Date(o.datum+"T12:00"))/864e5);
+    return `<div class="kitem"><div class="kl"><b>${esc(o.kunde)}</b> <span class="sub">abgeholt ${esc(dShort(o.datum))} (vor ${tage} Tagen) · ${esc(o.ort)}</span><div class="sub">${esc(tierText(o,", "))}</div></div>
+    <div class="kr"><a class="btn wa" target="_blank" rel="noopener" data-bw="${esc(o.id)}" href="https://wa.me/${esc(telKey(o.telefon))}?text=${encodeURIComponent(bewertText(o))}">Anfragen</a>
+    <button class="btn ghost" type="button" data-bwx="${esc(o.id)}">Nicht fragen</button></div></div>`}).join("")||`<p class="empty">Gerade niemand fällig.</p>`;
+  box.querySelectorAll("[data-bw]").forEach(a=>a.addEventListener("click",()=>setBewertung(a.dataset.bw,new Date().toISOString())));
+  box.querySelectorAll("[data-bwx]").forEach(b=>b.onclick=()=>setBewertung(b.dataset.bwx,"nein"));
+}
+
+/* ---------- Fahrer-Ansicht ---------- */
+function renderFahrer(){
+  const dSel=$("#fr-datum"); if(!dSel) return;
+  const h=iso(new Date()), vor=iso(new Date(Date.now()-3*864e5));
+  const act=orders.filter(o=>o.status!=="storniert"&&o.datum>=vor&&o.tour!=="R");
+  const tage=[...new Set(act.map(o=>o.datum))].sort().slice(0,20);
+  const def=tage.find(d=>d>=h)||tage[tage.length-1]||"";
+  const cur=tage.includes(dSel.value)?dSel.value:def;
+  dSel.innerHTML=tage.map(d=>`<option value="${d}"${d===cur?" selected":""}>${esc(dShort(d))}${d===h?" (heute)":""}</option>`).join("")||`<option value="">Keine Touren</option>`;
+  const tSel=$("#fr-tour"), ts=[...new Set(act.filter(o=>o.datum===cur).map(o=>o.tour))].sort();
+  const tc=ts.includes(tSel.value)?tSel.value:ts[0]||"";
+  tSel.innerHTML=ts.map(t=>{const tr=tourById(t);return `<option value="${t}"${t===tc?" selected":""}>${esc(tr?tr.nr+" – "+tr.name:t)}</option>`}).join("");
+  const os=act.filter(o=>o.datum===cur&&o.tour===tc), tr=tourById(tc);
+  const bez=os.filter(o=>o.zahlung).reduce((a,o)=>a+(+o.zahlung.betrag||0),0);
+  $("#fr-kpis").innerHTML=os.length?`<div class="kpi"><b>${os.length}</b><span>Kunden</span></div><div class="kpi"><b>${os.reduce((a,o)=>a+stueck(o),0)}</b><span>Tiere</span></div><div class="kpi"><b>${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</b><span>Summe</span></div><div class="kpi"><b>${esc(eur(bez))}</b><span>kassiert (${os.filter(o=>o.zahlung).length})</span></div>`:"";
+  if(!tr){$("#fr-list").innerHTML="";return}
+  const mapsLink=q=>"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q);
+  const zeile=o=>{const z=o.zahlung;return `<div class="kitem${z?" bezahlt":""}">
+    <div class="kl"><b>${esc(o.kunde)}</b> ${o.telefon?`<a class="sub" href="tel:${esc(String(o.telefon).replace(/\s/g,""))}">📞 ${esc(o.telefon)}</a>`:""}
+      <div>${esc(tierText(o,", "))}</div>${o.bemerkung?`<div class="sub">💬 ${esc(o.bemerkung)}</div>`:""}
+      ${o.ort===HOME&&o.adresse?`<div class="sub">🏠 ${esc(o.adresse)} <a href="${esc(mapsLink(o.adresse))}" target="_blank" rel="noopener">Navi</a></div>`:""}</div>
+    ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span> <button class="btn ghost" type="button" data-q="${esc(o.id)}">Quittung</button></div>`
+      :`<div class="kr"><input data-fb="${esc(o.id)}" inputmode="decimal" value="${betrag(o)||""}" placeholder="€" style="width:80px">
+        <div class="kbtns"><button class="btn" type="button" data-fz="bar" data-fid="${esc(o.id)}">Bar</button><button class="btn ghost" type="button" data-fz="paypal" data-fid="${esc(o.id)}">PayPal</button><button class="btn ghost" type="button" data-fz="ueberweisung" data-fid="${esc(o.id)}">Überw.</button></div></div>`}
+  </div>`};
+  $("#fr-list").innerHTML=tr.stops.map(st=>{
+    const so=os.filter(o=>o.ort===st[1]).sort((a,b)=>a.kunde.localeCompare(b.kunde,"de")); if(!so.length) return "";
+    const hh=st[1]===HOME?null:halt(st[1]), adr=hh?[hh.laden,navi(hh)].filter(Boolean).join(", "):"";
+    const offen=so.filter(o=>!o.zahlung).length;
+    return `<div class="stop"><div class="stophead"><div><b>${esc(st[0]?st[0]+" · ":"")}${esc(st[1])}</b><div class="sub">${esc(adr)}</div></div>
+      <div class="btns"><span class="chip${offen?"":" abgeholt"}">${offen?offen+" offen":"✓ fertig"}</span>${hh&&navi(hh)?`<a class="btn ghost" target="_blank" rel="noopener" href="${esc(mapsLink(navi(hh)))}">Navi</a>`:""}</div></div>
+      ${so.map(zeile).join("")}</div>`}).join("")||`<p class="empty">Keine Bestellungen.</p>`;
+  $("#fr-list").querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{const i=$("#fr-list").querySelector(`[data-fb="${CSS.escape(b.dataset.fid)}"]`);kaZahlung(b.dataset.fid,b.dataset.fz,i?i.value:undefined)});
+  $("#fr-list").querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>quittung(b.dataset.q));
+}
+["#fr-datum","#fr-tour"].forEach(s=>$(s).addEventListener("change",renderFahrer));
+
+/* ---------- Auswertung ---------- */
+function renderZahlen(){
+  const jSel=$("#za-jahr"); if(!jSel) return;
+  const jahre=[...new Set(orders.map(o=>(o.datum||"").slice(0,4)).filter(Boolean))].sort().reverse();
+  const cur=jahre.includes(jSel.value)?jSel.value:(jahre.includes(String(new Date().getFullYear()))?String(new Date().getFullYear()):jahre[0]||"");
+  jSel.innerHTML=jahre.map(j=>`<option${j===cur?" selected":""}>${j}</option>`).join("");
+  const alleJ=orders.filter(o=>(o.datum||"").startsWith(cur)), os=alleJ.filter(o=>o.status!=="storniert");
+  const umsatz=os.reduce((a,o)=>a+betrag(o),0), tiere=os.reduce((a,o)=>a+stueck(o),0);
+  const erste=new Map(); orders.filter(o=>o.status!=="storniert").forEach(o=>{const k=kundeKey(o);if(!erste.has(k)||erste.get(k)>o.datum)erste.set(k,o.datum)});
+  const kunden=new Set(os.map(kundeKey)), neu=[...kunden].filter(k=>(erste.get(k)||"").startsWith(cur)).length;
+  const app=os.filter(o=>o.quelle==="kunde").length, sto=alleJ.length-os.length;
+  $("#za-kpis").innerHTML=[[eur(umsatz),"Umsatz"],[tiere,"Tiere"],[os.length,"Bestellungen"],[kunden.size,"Kunden"],[neu,"Neukunden"],[os.length?eur(umsatz/os.length):"–","Ø pro Bestellung"],[os.length?Math.round(app/os.length*100)+" %":"–","über Kunden-App"],[alleJ.length?Math.round(sto/alleJ.length*100)+" %":"–","storniert"]]
+    .map(([b,s])=>`<div class="kpi"><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join("");
+  const tab=(rows,head,maxU)=>`<thead><tr>${head.map((h,i)=>`<th${i?' class="num"':""}>${h}</th>`).join("")}</tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${esc(r[0])}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num" style="white-space:nowrap"><span class="bar" style="width:${maxU?Math.round(r[3]/maxU*80):0}px"></span>${esc(eur(r[3]))}</td></tr>`).join("")+`</tbody>`;
+  const agg=(keyFn)=>{const m=new Map();os.forEach(o=>{const k=keyFn(o);const c=m.get(k)||[0,0,0];c[0]++;c[1]+=stueck(o);c[2]+=betrag(o);m.set(k,c)});return m};
+  const MON=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+  const mm=agg(o=>+o.datum.slice(5,7)), mrows=MON.map((n,i)=>{const c=mm.get(i+1)||[0,0,0];return [n,c[0],c[1],c[2]]}).filter(r=>r[1]);
+  $("#za-monat").innerHTML=tab(mrows,["Monat","Bestellungen","Tiere","Umsatz"],Math.max(0,...mrows.map(r=>r[3])));
+  const om=agg(o=>o.ort||"–"), orows=[...om.entries()].map(([k,c])=>[k,c[0],c[1],c[2]]).sort((a,b)=>b[3]-a[3]||b[2]-a[2]);
+  $("#za-ort").innerHTML=tab(orows,["Haltepunkt","Bestellungen","Tiere","Umsatz"],Math.max(0,...orows.map(r=>r[3])));
+  const tm=new Map(); os.forEach(o=>(o.positionen||[]).forEach(p=>{if(!p.tier||!+p.anzahl)return;const c=tm.get(p.tier)||[0,0,0];c[0]++;c[1]+=+p.anzahl;c[2]+=(+p.anzahl)*(+p.preis||0);tm.set(p.tier,c)}));
+  const trows=[...tm.entries()].map(([k,c])=>[k,c[0],c[1],c[2]]).sort((a,b)=>b[2]-a[2]).slice(0,30);
+  $("#za-tier").innerHTML=tab(trows,["Tierart","Bestellungen","Stück","Umsatz"],Math.max(0,...trows.map(r=>r[3])));
+}
+$("#za-jahr").addEventListener("change",renderZahlen);
+
+/* ---------- Quittung als PDF ---------- */
+async function logoDataUrl(){
+  if(logoDataUrl.v) return logoDataUrl.v;
+  try{const b=await fetch("./logo.png").then(r=>r.blob());logoDataUrl.v=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)})}catch(e){logoDataUrl.v=null}
+  return logoDataUrl.v;
+}
+async function quittung(id){
+  const o=orders.find(x=>x.id===id); if(!o) return;
+  toast("Quittung wird erstellt …");
+  const {jsPDF}=await import("jspdf");
+  const d=new jsPDF({unit:"mm",format:"a5"}), W=148, L=14, R=W-14;
+  const z=o.zahlung||{}, datum=z.zeit?new Date(z.zeit):new Date(o.datum+"T12:00");
+  const nr="Q-"+datum.getFullYear()+"-"+String(o.id).slice(0,6).toUpperCase();
+  const lg=await logoDataUrl(); if(lg) try{d.addImage(lg,"PNG",R-22,10,22,22)}catch(e){}
+  d.setFont("helvetica","bold");d.setFontSize(15);d.text(firma.name||"Geflügelverkauf Holle",L,17);
+  d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(90);
+  d.text([firma.adresse,firma.tel?"Telefon/WhatsApp: "+firma.tel:""].filter(Boolean),L,23);
+  d.setTextColor(0);d.setFont("helvetica","bold");d.setFontSize(18);d.text("Quittung",L,44);
+  d.setFont("helvetica","normal");d.setFontSize(10);
+  d.text(`Nr. ${nr}`,R,44,{align:"right"});
+  d.text(`Datum: ${datum.toLocaleDateString("de-DE")}`,R,50,{align:"right"});
+  d.text(["Kunde:",o.kunde||"",o.adresse||o.wohnort||""].filter(Boolean),L,52);
+  let y=72; d.setDrawColor(180);d.line(L,y-5,R,y-5);
+  d.setFont("helvetica","bold");d.text("Anzahl",L,y);d.text("Tierart",L+18,y);d.text("Einzel",R-28,y,{align:"right"});d.text("Gesamt",R,y,{align:"right"});
+  d.setFont("helvetica","normal");y+=3;d.line(L,y,R,y);y+=6;
+  (o.positionen||[]).filter(p=>p.tier&&+p.anzahl).forEach(p=>{
+    if(y>175){d.addPage();y=20}
+    d.text(String(p.anzahl),L,y);d.text(d.splitTextToSize(p.tier,R-28-L-30),L+18,y);
+    if(+p.preis){d.text(eur(+p.preis),R-28,y,{align:"right"});d.text(eur(+p.anzahl*+p.preis),R,y,{align:"right"})}
+    y+=7;
+  });
+  d.line(L,y-3,R,y-3);y+=4;
+  const summe=z.betrag!=null?+z.betrag:betrag(o);
+  d.setFont("helvetica","bold");d.setFontSize(12);d.text("Gesamtbetrag",L,y);d.text(eur(summe),R,y,{align:"right"});
+  d.setFont("helvetica","normal");d.setFontSize(10);y+=8;
+  if(z.art) d.text(`Bezahlt: ${ZART[z.art]||z.art}${z.art==="bar"?" – Betrag dankend erhalten.":""}`,L,y);
+  if(Math.abs(summe-betrag(o))>0.009&&betrag(o)) {y+=6;d.setFontSize(8);d.setTextColor(90);d.text(`(Positionen ${eur(betrag(o))}, kassiert ${eur(summe)})`,L,y);d.setTextColor(0);d.setFontSize(10)}
+  y+=18;d.line(L,y,L+60,y);d.setFontSize(8);d.setTextColor(90);d.text("Unterschrift / Stempel",L,y+4);
+  if(firma.fuss){d.setFontSize(8);d.text(d.splitTextToSize(firma.fuss,R-L),L,196)}
+  const file=new File([d.output("blob")],`Quittung-${nr}.pdf`,{type:"application/pdf"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:"Quittung "+nr})}catch(e){}}
+  else{const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
+}
+// Quittung auch in der Kasse bei bezahlten Bestellungen
+{
+  const _rk=renderKasse;
+  renderKasse=function(){_rk();const l=$("#ka-list");if(!l)return;
+    l.querySelectorAll(".kitem.bezahlt .kr").forEach(kr=>{const id=kr.parentElement.querySelector("[data-kundo]")?.dataset.kundo||kr.closest(".kitem").dataset.oid;if(!id||kr.querySelector("[data-q]"))return;
+      const b=document.createElement("button");b.className="btn ghost";b.type="button";b.dataset.q=id;b.textContent="Quittung";b.onclick=()=>quittung(id);kr.appendChild(b)});};
+}
+
+/* ---------- Kontakte vom Handy (vCard) ---------- */
+function parseVcf(txt){
+  const lines=txt.replace(/\r\n/g,"\n").replace(/\n[ \t]/g,"").split("\n"), out=[]; let c=null;
+  const un=v=>v.replace(/\\n/gi," ").replace(/\\([,;\\])/g,"$1").trim();
+  for(const l of lines){
+    const i=l.indexOf(":"); if(i<0) continue;
+    const head=l.slice(0,i), val=l.slice(i+1), name=head.split(";")[0].replace(/^item\d+\./i,"").toUpperCase();
+    if(name==="BEGIN"&&/vcard/i.test(val)) c={fn:"",n:"",tels:[],org:"",ort:""};
+    else if(name==="END"&&c){out.push(c);c=null}
+    else if(!c) continue;
+    else if(name==="FN") c.fn=un(val);
+    else if(name==="N"){const p=val.split(";").map(un);c.n=[p[1],p[0]].filter(Boolean).join(" ")}
+    else if(name==="ORG") c.org=un(val.split(";")[0]);
+    else if(name==="TEL") c.tels.push({nr:val.replace(/^tel:/i,"").trim(),cell:/cell|mobile|iphone/i.test(head)});
+    else if(name==="ADR"&&!c.ort){const p=val.split(";").map(un);c.ort=p[3]||""}
+  }
+  const mobil=t=>/^(\+?49|0049|0)1[5-7]/.test(t.replace(/[\s\-\/()]/g,""));
+  return out.map(c=>{const t=c.tels.find(t=>mobil(t.nr))||c.tels.find(t=>t.cell)||c.tels[0];
+    return t?{name:(c.fn||c.n||c.org||"").trim(),telefon:t.nr,org:c.org,ort:c.ort,key:telKey(t.nr)}:null}).filter(c=>c&&c.key);
+}
+var kiDaten=[];
+$("#ki-file").addEventListener("change",async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  const txt=await f.text(); const roh=parseVcf(txt), seen=new Set();
+  const bekannt=new Set(kundenListe().map(k=>k.key));
+  kiDaten=roh.filter(c=>!seen.has(c.key)&&seen.add(c.key)).map(c=>({...c,bekannt:bekannt.has(c.key),an:!bekannt.has(c.key)}))
+    .sort((a,b)=>a.name.localeCompare(b.name,"de"));
+  if(!kiDaten.length){toast("Keine Kontakte mit Telefonnummer in der Datei gefunden.");return}
+  $("#ki-q").value=""; $("#kiDlg").hidden=false; renderKi();
+});
+function renderKi(){
+  const q=$("#ki-q").value.trim().toLowerCase();
+  const vis=kiDaten.filter(c=>!q||(c.name+" "+c.telefon+" "+c.org+" "+c.ort).toLowerCase().includes(q));
+  $("#ki-list").innerHTML=vis.slice(0,1500).map(c=>`<label><input type="checkbox" data-ki="${esc(c.key)}"${c.an?" checked":""}${c.bekannt?" disabled":""}><span><b>${esc(c.name||"(ohne Namen)")}</b>${c.org&&c.org!==c.name?` <span class="sub">${esc(c.org)}</span>`:""}<br><span class="sub">${esc(c.telefon)}${c.ort?" · "+esc(c.ort):""}</span></span><span class="sub">${c.bekannt?"schon in der Kartei":""}</span></label>`).join("");
+  $("#ki-info").textContent=`${kiDaten.filter(c=>c.an).length} von ${kiDaten.length} ausgewählt`;
+  $("#ki-list").querySelectorAll("[data-ki]").forEach(i=>i.onchange=()=>{const c=kiDaten.find(x=>x.key===i.dataset.ki);c.an=i.checked;$("#ki-info").textContent=`${kiDaten.filter(c=>c.an).length} von ${kiDaten.length} ausgewählt`});
+}
+$("#ki-q").addEventListener("input",renderKi);
+$("#ki-all").onclick=()=>{const q=$("#ki-q").value.trim().toLowerCase();kiDaten.forEach(c=>{if(!c.bekannt&&(!q||(c.name+" "+c.telefon).toLowerCase().includes(q)))c.an=true});renderKi()};
+$("#ki-none").onclick=()=>{const q=$("#ki-q").value.trim().toLowerCase();kiDaten.forEach(c=>{if(!q||(c.name+" "+c.telefon).toLowerCase().includes(q))c.an=false});renderKi()};
+$("#ki-close").onclick=()=>{$("#kiDlg").hidden=true};
+$("#ki-go").onclick=async()=>{
+  const sel=kiDaten.filter(c=>c.an&&!c.bekannt); if(!sel.length){toast("Nichts ausgewählt.");return}
+  const now=new Date().toISOString();
+  const rows=sel.map(c=>({coll:"kunden",id:c.key,data:{...(kundenInfo[c.key]||{}),kontakt:true,name:c.name||c.telefon,telefon:c.telefon,wohnort:c.ort||"",importiert:now,updated:now}}));
+  $("#ki-go").disabled=true;
+  try{
+    for(let i=0;i<rows.length;i+=200){const {error}=await SB.from("bb_docs").upsert(rows.slice(i,i+200),{onConflict:"coll,id"});if(error) throw error}
+    rows.forEach(r=>kundenInfo[r.id]=r.data); renderKunden(); renderNachrichten();
+    $("#kiDlg").hidden=true; toast(`${rows.length} Kontakte importiert`);
+  }catch(e){toast("Import fehlgeschlagen: "+(e.message||e))}
+  $("#ki-go").disabled=false;
+};

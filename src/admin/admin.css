@@ -46,3 +46,19 @@ b.ok{color:var(--ok)}
 .kbtns .btn{padding:8px 11px;font-size:.88rem}
 .kabschluss{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .kabschluss.done{border-color:var(--ok)}
+
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.seg button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font:600 .9rem var(--font,inherit);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg .n,.tabs .n{margin-left:4px}
+.kilist{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:9px}
+.kilist label{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);flex-direction:row;font-weight:400}
+.kilist label input{width:auto}
+.kilist .sub{margin-left:auto}
+.stop{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.stophead{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);flex-wrap:wrap}
+.stophead b{font-size:1.05rem}
+.stop .kitem{border:0;border-top:1px solid var(--line);border-radius:0;margin:0}
+.bar{display:inline-block;height:8px;background:var(--accent);border-radius:4px;vertical-align:middle;margin-right:6px;opacity:.75}
+label.full{display:flex;flex-direction:column;gap:4px}
+label.full textarea{width:100%}

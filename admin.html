@@ -52,12 +52,14 @@
     <button role="tab" data-tab="liste" aria-selected="false">Bestellungen <span class="n" id="cnt">0</span></button>
     <button role="tab" data-tab="kunden" aria-selected="false">Kunden</button>
     <button role="tab" data-tab="kasse" aria-selected="false">Kasse</button>
-    <button role="tab" data-tab="erinnern" aria-selected="false">Erinnern</button>
+    <button role="tab" data-tab="fahrer" aria-selected="false">Fahrer</button>
+    <button role="tab" data-tab="erinnern" aria-selected="false">Nachrichten <span class="n" id="nach-n" hidden>0</span></button>
     <button role="tab" data-tab="bedarf" aria-selected="false">Tierbedarf</button>
     <button role="tab" data-tab="bestell" aria-selected="false">Bestellliste</button>
     <button role="tab" data-tab="lade" aria-selected="false">Ladeliste</button>
     <button role="tab" data-tab="fahr" aria-selected="false">Fahrplan</button>
     <button role="tab" data-tab="nach" aria-selected="false">Nachweisliste</button>
+    <button role="tab" data-tab="zahlen" aria-selected="false">Auswertung</button>
     <button role="tab" data-tab="app" aria-selected="false">Kunden-App</button>
   </nav>
 
@@ -124,7 +126,10 @@
   <section id="tab-kunden" class="panel" hidden>
     <div class="filters">
       <label>Suche<input id="k-q" placeholder="Name, Telefon, Ort"></label>
-      <label>Anzeigen<select id="k-f"><option value="">Alle Kunden</option><option value="karte">Nur mit Stempelkarte</option><option value="gratis">Gratis-Huhn fällig</option><option value="stamm">Stammkunden (3+ Bestellungen)</option></select></label>
+      <label>Anzeigen<select id="k-f"><option value="">Alle Kunden</option><option value="karte">Nur mit Stempelkarte</option><option value="gratis">Gratis-Huhn fällig</option><option value="stamm">Stammkunden (3+ Bestellungen)</option><option value="kontakt">Kontakte ohne Bestellung</option></select></label>
+    </div>
+    <div class="actions" style="margin:0 0 10px">
+      <label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">📇 Kontakte vom Handy importieren<input type="file" id="ki-file" accept=".vcf,text/vcard,text/x-vcard" hidden></label>
     </div>
     <div class="kpis" id="k-kpis"></div>
     <div id="k-detail"></div>
@@ -154,6 +159,13 @@
 
   <!-- ERINNERN -->
   <section id="tab-erinnern" class="panel" hidden>
+    <div class="seg" id="nach-seg">
+      <button type="button" data-seg="tour" aria-pressed="true">Tour-Erinnerung</button>
+      <button type="button" data-seg="warte" aria-pressed="false">Warteliste <span class="n" id="wl-n" hidden>0</span></button>
+      <button type="button" data-seg="rund" aria-pressed="false">Rundnachricht</button>
+      <button type="button" data-seg="bewert" aria-pressed="false">Google-Bewertung <span class="n" id="bw-n" hidden>0</span></button>
+    </div>
+    <div id="seg-tour">
     <div class="filters">
       <label>Abholtag<select id="er-datum"></select></label>
       <label>Haltepunkt<select id="er-ort"><option value="">Alle</option></select></label>
@@ -161,6 +173,47 @@
     <p class="hint" id="er-info"></p>
     <div id="er-list"></div>
     <p class="hint">Tipp auf „Erinnern“: WhatsApp öffnet sich mit fertigem Text, du musst nur noch auf Senden tippen. Danach zurück in die App und den nächsten Kunden antippen.</p>
+    </div>
+    <div id="seg-warte" hidden>
+      <p class="hint" style="margin-top:0">Kunden, die sich bei ausverkauften Tieren in der App eingetragen haben. Sind die Tiere wieder da: Bestand im Tab „Kunden-App“ eintragen und hier der Reihe nach Bescheid geben.</p>
+      <div id="wl-list"></div>
+    </div>
+    <div id="seg-rund" hidden>
+      <div class="filters">
+        <label>Aktion<input id="rn-name" value="Saisonstart 2027"></label>
+        <label>An wen<select id="rn-f"><option value="">Alle Kunden mit Handynummer</option><option value="best">Nur Kunden mit Bestellung</option><option value="kontakt">Nur importierte Kontakte</option><option value="stamm">Stammkunden (3+ Bestellungen)</option></select></label>
+        <label>Haltepunkt<select id="rn-ort"><option value="">Alle</option></select></label>
+      </div>
+      <label class="full">Text ({vorname} wird ersetzt, {link} = Bestell-App)<textarea id="rn-text" rows="6"></textarea></label>
+      <p class="hint" id="rn-info"></p>
+      <div id="rn-list"></div>
+      <p class="hint">Bitte nur Kunden anschreiben, die schon bei dir gekauft haben oder Nachrichten von dir wollen. Wer „Stopp“ schreibt, im Kunden-Detail auf „Keine Rundnachrichten“ setzen.</p>
+    </div>
+    <div id="seg-bewert" hidden>
+      <p class="hint" style="margin-top:0">Kunden, deren Abholung mindestens 7 Tage her ist (bis 90 Tage). Nichts geht automatisch raus: Du entscheidest pro Kunde mit „Anfragen“ oder „Nicht fragen“. Jeder Kunde wird nur einmal gefragt.</p>
+      <div id="bw-list"></div>
+    </div>
+  </section>
+
+  <!-- FAHRER -->
+  <section id="tab-fahrer" class="panel" hidden>
+    <div class="filters">
+      <label>Tag<select id="fr-datum"></select></label>
+      <label>Tour<select id="fr-tour"></select></label>
+    </div>
+    <div class="kpis" id="fr-kpis"></div>
+    <div id="fr-list"></div>
+    <p class="hint">Für den Fahrer: Haltepunkte in Fahr-Reihenfolge, „Navi“ öffnet Google Maps. Kassieren wirkt sofort in der Kasse. Der Fahrer braucht einen eigenen Zugang (E-Mail in der Mitarbeiter-Liste).</p>
+  </section>
+
+  <!-- AUSWERTUNG -->
+  <section id="tab-zahlen" class="panel" hidden>
+    <div class="filters"><label>Jahr<select id="za-jahr"></select></label></div>
+    <div class="kpis" id="za-kpis"></div>
+    <div class="section-h">Pro Monat</div><div class="tablewrap"><table class="list" id="za-monat"></table></div>
+    <div class="section-h">Pro Haltepunkt</div><div class="tablewrap"><table class="list" id="za-ort"></table></div>
+    <div class="section-h">Tierarten</div><div class="tablewrap"><table class="list" id="za-tier"></table></div>
+    <p class="hint">Gezählt werden alle nicht stornierten Bestellungen nach Abholdatum. Umsatz = Stückzahl × eingetragener Preis.</p>
   </section>
 
   <!-- BEDARF -->
@@ -267,6 +320,16 @@
     <datalist id="dl-kat"></datalist>
     <div class="actions" style="margin-top:10px"><button class="btn ghost" type="button" id="pr-add">Tierart hinzufügen</button></div>
 
+    <div class="section-h">Firma, Quittung und Google</div>
+    <div class="grid">
+      <label>Firmenname<input id="fi-name"></label>
+      <label>Adresse<input id="fi-adresse"></label>
+      <label>Telefon<input id="fi-tel"></label>
+      <label>Google-Bewertungslink<input id="fi-google"></label>
+    </div>
+    <label class="full" style="margin-top:8px">Fußzeile der Quittung (z. B. Steuerhinweis, Bankverbindung)<textarea id="fi-fuss" rows="2"></textarea></label>
+    <div class="actions" style="margin-top:8px"><button class="btn ghost" type="button" id="fi-save">Speichern</button></div>
+
     <div class="section-h">Benachrichtigung aufs Handy</div>
     <p class="hint" style="margin-top:0">Bei jeder neuen Kunden-Bestellung kommt eine Nachricht über deinen Telegram-Bot.</p>
     <div class="actions" style="margin-top:6px">
@@ -286,6 +349,14 @@
 <datalist id="dl-tiere"></datalist>
 <datalist id="dl-kunden"></datalist>
 <div id="toast" class="toast" hidden></div>
+<div id="kiDlg" class="carddlg" hidden><div class="cardbox" style="max-width:560px">
+  <h3>Kontakte importieren</h3>
+  <p class="hint" style="margin-top:0">Nimm Familie, Freunde und andere Privatkontakte raus. Nur Kontakte mit Häkchen kommen in die Kundenkartei.</p>
+  <input id="ki-q" placeholder="Suchen …" style="margin-bottom:8px">
+  <div class="actions" style="margin:0 0 8px"><button class="btn ghost" type="button" id="ki-all">Alle an</button><button class="btn ghost" type="button" id="ki-none">Alle aus</button><span class="hint" id="ki-info"></span></div>
+  <div id="ki-list" class="kilist"></div>
+  <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="ki-go">Importieren</button><button class="btn ghost" type="button" id="ki-close">Abbrechen</button></div>
+</div></div>
 <div id="cardDlg" class="carddlg" hidden><div class="cardbox">
   <h3>Stempelkarte als Bild</h3>
   <img id="cardImg" alt="Stempelkarte">

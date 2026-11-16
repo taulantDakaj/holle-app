@@ -232,3 +232,16 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 
 .pstock { font-size: .78rem; font-weight: 700; color: #b26a00; }
 .pstock.out { color: #b3261e; }
+
+.wl { margin-top: .5rem; display: grid; gap: .45rem; }
+.wl.ok { color: #1f7a3f; font-weight: 600; font-size: .9rem; }
+.wlrow { display: grid; grid-template-columns: 1fr 1fr 5rem; gap: .4rem; }
+.wl input { width: 100%; padding: .55rem .6rem; border: 1px solid #ddd; border-radius: 10px; font: inherit; }
+.btn.small { padding: .45rem .8rem; font-size: .88rem; justify-self: start; }
+.btn.warn { background: #b3121f; color: #fff; }
+.btnrow { display: flex; gap: .5rem; flex-wrap: wrap; }
+.status { font-weight: 700; padding: .5rem .7rem; border-radius: 10px; background: #fff4d6; }
+.status.s-offen, .status.s-abgeholt { background: #e6f4ea; color: #1f7a3f; }
+.status.s-storniert { background: #fde7e9; color: #b3121f; }
+.poslist { padding-left: 1.1rem; }
+@media (max-width: 480px) { .wlrow { grid-template-columns: 1fr 1fr; } .wlrow input:last-child { grid-column: span 2; } }

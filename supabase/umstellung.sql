@@ -303,3 +303,93 @@ create trigger bb_bestand after insert or update or delete on bb_docs
   for each row execute function bb_bestand_sync();
 
 revoke all on function bb_bestand_sync() from public, anon, authenticated;
+-- ---------- Warteliste, Kunden-Link ----------
+create table if not exists warteliste (
+  id bigserial primary key,
+  product_id bigint references products(id) on delete cascade,
+  tier text not null,
+  name text not null,
+  telefon text not null,
+  anzahl int not null default 1,
+  bemerkung text not null default '',
+  created timestamptz not null default now(),
+  benachrichtigt timestamptz,
+  erledigt timestamptz
+);
+alter table warteliste enable row level security;
+drop policy if exists staff_all on warteliste;
+create policy staff_all on warteliste for all to authenticated using (is_staff()) with check (is_staff());
+
+create or replace function join_waitlist(p jsonb) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  v_name text := left(trim(coalesce(p->>'name','')), 100);
+  v_tel  text := left(trim(coalesce(p->>'telefon','')), 30);
+  v_anz  int  := coalesce(nullif(p->>'anzahl','')::int, 1);
+  v_bem  text := left(trim(coalesce(p->>'bemerkung','')), 300);
+  v_prod products%rowtype;
+begin
+  if length(v_name) < 2 then raise exception 'Bitte Namen angeben.'; end if;
+  if length(regexp_replace(v_tel, '[^0-9]', '', 'g')) < 6 then raise exception 'Bitte gültige Handynummer angeben.'; end if;
+  if v_anz < 1 or v_anz > 500 then raise exception 'Ungültige Anzahl.'; end if;
+  select * into v_prod from products where id = (p->>'product_id')::bigint;
+  if not found then raise exception 'Tier nicht gefunden.'; end if;
+  if (select count(*) from warteliste where telefon = v_tel and created > now() - interval '1 day') >= 5 then
+    raise exception 'Zu viele Einträge mit dieser Nummer. Bitte ruf uns kurz an.'; end if;
+  if exists (select 1 from warteliste where telefon = v_tel and product_id = v_prod.id and erledigt is null) then
+    update warteliste set anzahl = v_anz, name = v_name, bemerkung = v_bem where telefon = v_tel and product_id = v_prod.id and erledigt is null;
+  else
+    insert into warteliste (product_id, tier, name, telefon, anzahl, bemerkung) values (v_prod.id, v_prod.name, v_name, v_tel, v_anz, v_bem);
+    perform push_senden('Warteliste: ' || v_name, v_anz || '× ' || v_prod.name || coalesce(nullif(' · ' || v_bem, ' · '), ''));
+  end if;
+  return json_build_object('ok', true);
+end $$;
+
+drop function if exists get_my_order(text);
+create or replace function get_my_order(p_id text) returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'nr', upper(substr(id, 1, 6)),
+    'vorname', split_part(coalesce(data->>'kunde',''), ' ', 1),
+    'datum', data->>'datum', 'tour', data->>'tour', 'ort', data->>'ort',
+    'positionen', coalesce(data->'positionen', '[]'::jsonb),
+    'status', data->>'status',
+    'bezahlt', data ? 'zahlung',
+    'stornierbar', (data->>'status') in ('neu','offen') and not (data ? 'zahlung') and (data->>'datum')::date > current_date)
+  from bb_docs where coll = 'orders' and id = p_id and length(p_id) >= 16;
+$$;
+
+create or replace function cancel_my_order(p_id text, p_grund text default '') returns json
+language plpgsql security definer set search_path = public as $$
+declare d jsonb;
+begin
+  select data into d from bb_docs where coll = 'orders' and id = p_id and length(p_id) >= 16 for update;
+  if d is null then raise exception 'Bestellung nicht gefunden.'; end if;
+  if (d->>'status') not in ('neu','offen') or d ? 'zahlung' then raise exception 'Diese Bestellung kann nicht mehr storniert werden.'; end if;
+  if (d->>'datum')::date <= current_date then raise exception 'Am Abholtag bitte kurz anrufen oder per WhatsApp absagen.'; end if;
+  update bb_docs set data = data || jsonb_build_object('status','storniert','storniert_von','kunde',
+      'bemerkung', concat_ws(' · ', nullif(trim(coalesce(data->>'bemerkung','')), ''),
+        case when trim(coalesce(p_grund,'')) <> '' then 'Absage: ' || left(trim(p_grund), 300) else 'Vom Kunden abgesagt' end),
+      'updated', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+    updated_at = now()
+  where coll = 'orders' and id = p_id;
+  perform push_senden('Absage: ' || (d->>'kunde'), to_char((d->>'datum')::date, 'DD.MM.') || ' · ' || (d->>'ort')
+    || coalesce(nullif(E'\n' || coalesce(p_grund,''), E'\n'), ''));
+  return json_build_object('ok', true);
+end $$;
+
+revoke all on function join_waitlist(jsonb) from public;
+revoke all on function get_my_order(text) from public;
+revoke all on function cancel_my_order(text, text) from public;
+grant execute on function join_waitlist(jsonb) to anon, authenticated;
+grant execute on function get_my_order(text) to anon, authenticated;
+grant execute on function cancel_my_order(text, text) to anon, authenticated;
+
+-- Kunden-App bekommt die Bestell-ID zurück (für den Link „Meine Bestellung“)
+do $do$
+declare d text := pg_get_functiondef('submit_order(jsonb)'::regprocedure);
+begin
+  if position('''id'', v_id' in d) = 0 then
+    execute replace(d, $x$'datum', v_datum);$x$, $x$'datum', v_datum, 'id', v_id);$x$);
+  end if;
+end $do$;

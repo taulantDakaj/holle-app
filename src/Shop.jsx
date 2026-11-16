@@ -119,6 +119,7 @@ export default function Shop() {
           <pre className="summary">{done.summary}</pre>
           <p><b>Abholung:</b> {done.where}</p>
           <p>Wir melden uns per WhatsApp oder Telefon und bestätigen deine Bestellung. Bezahlt wird bei Abholung.</p>
+          {done.id && <p><a href={`./#/b/${done.id}`}>Deine Bestellung ansehen oder absagen</a> – den Link schicken wir dir auch mit der Bestätigung.</p>}
           <a className="btn wa" href={`https://wa.me/${SHOP_WA}?text=${encodeURIComponent(wa)}`}>Bestellung zusätzlich per WhatsApp schicken</a>
           <button className="btn ghost" onClick={() => location.reload()}>Neue Bestellung</button>
         </div>
@@ -148,6 +149,7 @@ export default function Shop() {
                       {p.bestand === 0 ? <div className="pstock out">ausverkauft</div>
                         : p.bestand != null && p.bestand <= 20 ? <div className="pstock">nur noch {p.bestand} verfügbar</div> : null}
                     </div>
+                    {p.bestand === 0 && <Warteliste p={p} />}
                     {p.bestand !== 0 && <div className="variants">
                       <Variant label={p.price_hahn ? 'Henne' : ''}
                         price={p.price ? fmtPrice(p.price) : p.price_note || 'auf Anfrage'}
@@ -315,5 +317,83 @@ function Page({ children }) {
       <main>{children}</main>
       <footer>Geflügelverkauf Holle · 33397 Rietberg · @gefluegelholle</footer>
     </div>
+  );
+}
+
+function Warteliste({ p }) {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ name: '', telefon: '', anzahl: '' });
+  const [msg, setMsg] = useState('');
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (ok) return <div className="wl ok">✓ Du stehst auf der Warteliste. Wir melden uns per WhatsApp, sobald {p.name} wieder da ist.</div>;
+  if (!open) return <button type="button" className="btn ghost small" onClick={() => setOpen(true)}>Auf die Warteliste</button>;
+  async function senden() {
+    setMsg('');
+    setBusy(true);
+    const { error } = await supabase.rpc('join_waitlist', { p: { product_id: p.id, name: f.name, telefon: f.telefon, anzahl: f.anzahl || 1 } });
+    setBusy(false);
+    if (error) setMsg(error.message || 'Hat nicht geklappt.'); else setOk(true);
+  }
+  return (
+    <div className="wl">
+      <div className="wlrow">
+        <input placeholder="Dein Name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoComplete="name" />
+        <input placeholder="Handynummer" inputMode="tel" value={f.telefon} onChange={(e) => setF({ ...f, telefon: e.target.value })} autoComplete="tel" />
+        <input placeholder="Anzahl" inputMode="numeric" value={f.anzahl} onChange={(e) => setF({ ...f, anzahl: e.target.value.replace(/\D/g, '') })} />
+      </div>
+      <p className="hint">Wir nutzen deine Nummer nur, um dir Bescheid zu geben (<a href={DATENSCHUTZ_URL} target="_blank" rel="noreferrer">Datenschutz</a>).</p>
+      {msg && <div className="alert">{msg}</div>}
+      <button type="button" className="btn primary small" disabled={busy} onClick={senden}>{busy ? 'Sende …' : 'Eintragen'}</button>
+    </div>
+  );
+}
+
+const STATUS_TEXT = { neu: 'Eingegangen – wir bestätigen sie bald', offen: 'Bestätigt', abgeholt: 'Abgeholt – danke!', storniert: 'Abgesagt' };
+export function MeineBestellung({ id }) {
+  const [o, setO] = useState(undefined);
+  const [msg, setMsg] = useState('');
+  const [grund, setGrund] = useState('');
+  const [frage, setFrage] = useState(false);
+  const laden = () => supabase.rpc('get_my_order', { p_id: id }).then(({ data, error }) => setO(error ? null : data));
+  useEffect(() => { laden(); }, [id]);
+  async function absagen() {
+    setMsg('');
+    const { error } = await supabase.rpc('cancel_my_order', { p_id: id, p_grund: grund });
+    if (error) setMsg(error.message); else { setFrage(false); laden(); }
+  }
+  const t = o && TOURS.find((x) => x.id === o.tour);
+  const st = t && t.stops.find((s) => s[1] === o.ort);
+  const pos = (o?.positionen || []).filter((p) => p.tier && +p.anzahl);
+  const summe = pos.reduce((a, p) => a + (+p.anzahl || 0) * (+p.preis || 0), 0);
+  return (
+    <Page>
+      {o === undefined && <div className="card">Lade Bestellung …</div>}
+      {o === null && <div className="card"><h2>Bestellung nicht gefunden</h2><p>Bitte prüfe den Link oder schreib uns per <a href={`https://wa.me/${SHOP_WA}`}>WhatsApp</a>.</p></div>}
+      {o && (
+        <div className="card">
+          <h2>Hallo {o.vorname}, deine Bestellung {o.nr}</h2>
+          <p className={'status s-' + o.status}>{STATUS_TEXT[o.status] || o.status}</p>
+          <p><b>Abholung:</b> {o.tour === 'R' ? 'Rietberg' : o.ort}, {fmtDate(o.datum)}{st && st[0] ? `, ${st[0]} Uhr` : ''}</p>
+          <ul className="poslist">{pos.map((p, i) => <li key={i}>{p.anzahl} × {p.tier}{p.preis ? ` à ${fmtPrice(p.preis)}` : ''}</li>)}</ul>
+          {summe > 0 && <p><b>Gesamt: {fmtPrice(summe)}</b> · Bezahlung bei Abholung</p>}
+          {msg && <div className="alert">{msg}</div>}
+          {o.stornierbar && !frage && <button className="btn ghost" onClick={() => setFrage(true)}>Bestellung absagen</button>}
+          {frage && (
+            <div className="wl">
+              <p>Wirklich absagen? Du kannst uns gern kurz den Grund nennen.</p>
+              <input placeholder="Grund (freiwillig)" value={grund} onChange={(e) => setGrund(e.target.value)} />
+              <div className="btnrow">
+                <button className="btn warn" onClick={absagen}>Ja, absagen</button>
+                <button className="btn ghost" onClick={() => setFrage(false)}>Nein, behalten</button>
+              </div>
+            </div>
+          )}
+          {!o.stornierbar && (o.status === 'neu' || o.status === 'offen') && <p className="hint">Am Abholtag bitte kurz anrufen ({SHOP_PHONE}) oder per WhatsApp absagen.</p>}
+          <a className="btn wa" href={`https://wa.me/${SHOP_WA}?text=${encodeURIComponent(`Hallo, Frage zu meiner Bestellung ${o.nr}: `)}`}>Frage per WhatsApp</a>
+          <a className="btn ghost" href="./">Neue Bestellung</a>
+        </div>
+      )}
+    </Page>
   );
 }
