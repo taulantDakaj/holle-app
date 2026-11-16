@@ -64,3 +64,4 @@ label.full{display:flex;flex-direction:column;gap:4px}
 label.full textarea{width:100%}
 
 body.rolle-fahrer nav.tabs button:not([data-tab=fahrer]),body.rolle-fahrer #neuBox,body.rolle-fahrer #fr-list [data-q]{display:none!important}
+.fztouren{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin-top:6px;font-size:.9rem}.fztouren label{flex-direction:row;display:flex;gap:4px;align-items:center;font-weight:600}.fztouren input{width:auto}

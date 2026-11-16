@@ -471,3 +471,34 @@ grant execute on function fahrer_entfernen(text) to authenticated;
 -- Speichern läuft als Upsert, dafür braucht der Fahrer auch das Insert-Recht auf Bestellungen
 drop policy if exists fahrer_insert on bb_docs;
 create policy fahrer_insert on bb_docs for insert to authenticated with check (is_fahrer() and coll = 'orders');
+
+-- ---------- Fahrer sieht nur seine Touren (leer = alle) ----------
+alter table staff add column if not exists touren text[];
+create or replace function fahrer_darf(p_tour text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from staff where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    and role = 'fahrer' and (touren is null or cardinality(touren) = 0 or p_tour = any(touren)));
+$$;
+revoke execute on function fahrer_darf(text) from public, anon;
+grant execute on function fahrer_darf(text) to authenticated;
+drop policy if exists fahrer_read on bb_docs;
+create policy fahrer_read on bb_docs for select to authenticated
+  using (is_fahrer() and (coll = 'einstellungen' or (coll = 'orders' and fahrer_darf(data->>'tour'))));
+drop policy if exists fahrer_update on bb_docs;
+create policy fahrer_update on bb_docs for update to authenticated
+  using (is_fahrer() and coll = 'orders' and fahrer_darf(data->>'tour'))
+  with check (is_fahrer() and coll = 'orders' and fahrer_darf(data->>'tour'));
+drop policy if exists fahrer_insert on bb_docs;
+create policy fahrer_insert on bb_docs for insert to authenticated
+  with check (is_fahrer() and coll = 'orders' and fahrer_darf(data->>'tour'));
+create or replace function fahrer_touren_setzen(p_email text, p_touren text[]) returns json
+language plpgsql security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'Nur der Admin darf das ändern.'; end if;
+  update staff set touren = case when p_touren is null or cardinality(p_touren) = 0 then null else p_touren end
+    where lower(email) = lower(trim(p_email)) and role = 'fahrer';
+  if not found then raise exception 'Kein Fahrer-Zugang.'; end if;
+  return json_build_object('ok', true);
+end $$;
+revoke all on function fahrer_touren_setzen(text, text[]) from public, anon;
+grant execute on function fahrer_touren_setzen(text, text[]) to authenticated;

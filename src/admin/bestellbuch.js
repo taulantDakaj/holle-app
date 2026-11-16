@@ -1435,9 +1435,17 @@ const ROLLE=window.__holle.rolle||"admin";
 if(ROLLE==="fahrer"){ showTab("fahrer"); }
 async function ladeFahrer(){
   const box=$("#fz-list"); if(!box||ROLLE!=="admin") return;
-  const {data}=await SB.from("staff").select("email,name,role").eq("role","fahrer").order("email");
-  box.innerHTML=(data||[]).map(f=>`<div class="kitem"><div class="kl"><b>${esc(f.name||"Fahrer")}</b> <span class="sub">${esc(f.email)}</span></div>
-    <div class="kr"><button class="btn warn" type="button" data-fzx="${esc(f.email)}">Zugang löschen</button></div></div>`).join("")||`<p class="sub">Noch kein Fahrer-Zugang.</p>`;
+  const {data}=await SB.from("staff").select("email,name,role,touren").eq("role","fahrer").order("email");
+  const TT=TOURS.filter(t=>t.id!=="R");
+  box.innerHTML=(data||[]).map(f=>{const tu=f.touren||[];return `<div class="kitem"><div class="kl"><b>${esc(f.name||"Fahrer")}</b> <span class="sub">${esc(f.email)}</span>
+      <div class="fztouren">Sieht: ${TT.map(t=>`<label><input type="checkbox" data-fzt="${esc(f.email)}" value="${t.id}"${tu.includes(t.id)?" checked":""}> ${esc(t.nr)}</label>`).join("")}
+      <span class="sub">${tu.length?"":"(nichts angehakt = alle Touren)"}</span></div></div>
+    <div class="kr"><button class="btn warn" type="button" data-fzx="${esc(f.email)}">Zugang löschen</button></div></div>`}).join("")||`<p class="sub">Noch kein Fahrer-Zugang.</p>`;
+  box.querySelectorAll("[data-fzt]").forEach(c=>c.onchange=async()=>{
+    const em=c.dataset.fzt, tu=[...box.querySelectorAll(`[data-fzt="${CSS.escape(em)}"]:checked`)].map(x=>x.value);
+    const {error}=await SB.rpc("fahrer_touren_setzen",{p_email:em,p_touren:tu});
+    toast(error?error.message:tu.length?"Sieht jetzt nur: "+tu.map(id=>tourById(id).nr).join(", "):"Sieht jetzt alle Touren"); ladeFahrer();
+  });
   box.querySelectorAll("[data-fzx]").forEach(b=>b.onclick=async()=>{
     if(!confirm(`Zugang ${b.dataset.fzx} löschen? Der Fahrer kann sich dann nicht mehr anmelden.`)) return;
     const {error}=await SB.rpc("fahrer_entfernen",{p_email:b.dataset.fzx}); toast(error?error.message:"Zugang gelöscht"); ladeFahrer();
