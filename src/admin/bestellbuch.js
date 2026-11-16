@@ -1715,3 +1715,41 @@ function spracheAnwenden(){
     box.querySelectorAll("[data-lang]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang===SPRACHE));spracheAnwenden();renderFahrer();renderStandort()});
   spracheAnwenden();
 }
+
+/* ---------- Datensicherung ---------- */
+async function backupStatus(){
+  const e=$("#bk-status"); if(!e||ROLLE!=="admin") return;
+  const {data}=await SB.rpc("backup_status").then(r=>r,()=>({data:null}));
+  e.textContent=data?`Letzte Sicherung: ${new Date(data.zeit).toLocaleString("de-DE",{dateStyle:"short",timeStyle:"short"})} ${data.ok?"✓ an Telegram gesendet":"✗ fehlgeschlagen"+(data.info?" ("+data.info+")":"")}`:"Noch keine Sicherung gesendet.";
+}
+async function backupDaten(){
+  const alle=async(t,sp="*")=>{const rows=[];for(let v=0;;v+=1000){const {data,error}=await SB.from(t).select(sp).range(v,v+999);if(error)throw error;rows.push(...data);if(data.length<1000)break}return rows};
+  return {app:"holle-app",version:1,erstellt:new Date().toISOString(),tabellen:{bb_docs:await alle("bb_docs","coll,id,data,updated_at"),products:await alle("products"),fahrten:await alle("fahrten"),warteliste:await alle("warteliste")}};
+}
+if(ROLLE==="admin"){
+  backupStatus();
+  $("#bk-jetzt").onclick=async()=>{const {error}=await SB.rpc("backup_jetzt");toast(error?error.message:"Sicherung wird gesendet – kommt gleich in Telegram");setTimeout(backupStatus,15000)};
+  $("#bk-dl").onclick=async()=>{
+    try{toast("Sicherung wird erstellt …");const d=await backupDaten();
+      const f=new File([JSON.stringify(d)],`Holle-Sicherung_${iso(new Date())}.json`,{type:"application/json"});
+      if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]})}catch(e){}}
+      else{const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
+    }catch(e){toast("Sicherung fehlgeschlagen: "+(e.message||e))}
+  };
+  $("#bk-file").addEventListener("change",async ev=>{
+    const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
+    let d; try{d=JSON.parse(await f.text())}catch(e){toast("Das ist keine Holle-Sicherung.");return}
+    if(!d||d.app!=="holle-app"||!d.tabellen){toast("Das ist keine Holle-Sicherung.");return}
+    const t=d.tabellen, n=(t.bb_docs||[]).filter(r=>r.coll==="orders").length;
+    if(!confirm(`Sicherung vom ${new Date(d.erstellt).toLocaleString("de-DE")} einspielen?\n${n} Bestellungen, ${(t.products||[]).length} Tierarten, ${(t.fahrten||[]).length} Termine.\n\nVorhandene Einträge mit gleicher Nummer werden überschrieben, neuere Einträge bleiben erhalten.`)) return;
+    if(!confirm("Wirklich einspielen? Das lässt sich nicht rückgängig machen.")) return;
+    try{
+      const up=async(tab,rows,conf)=>{for(let i=0;i<rows.length;i+=300){const {error}=await SB.from(tab).upsert(rows.slice(i,i+300),{onConflict:conf});if(error)throw new Error(tab+": "+error.message)}};
+      const ohneId=rows=>rows.map(({id,...r})=>r);
+      await up("products",ohneId(t.products||[]),"name"); await up("fahrten",ohneId(t.fahrten||[]),"datum,tour");
+      await up("bb_docs",(t.bb_docs||[]).map(r=>({coll:r.coll,id:r.id,data:r.data,updated_at:r.updated_at||new Date().toISOString()})),"coll,id");
+      await up("warteliste",t.warteliste||[],"id");
+      toast("Sicherung eingespielt"); setTimeout(()=>location.reload(),1200);
+    }catch(e){toast("Einspielen fehlgeschlagen: "+(e.message||e))}
+  });
+}else{document.querySelectorAll("#bk-jetzt,#bk-dl,#bk-file").forEach(e=>e.disabled=true)}

@@ -332,6 +332,15 @@
     <label class="full" style="margin-top:8px">Fußzeile der Quittung (z. B. Steuerhinweis, Bankverbindung)<textarea id="fi-fuss" rows="2"></textarea></label>
     <div class="actions" style="margin-top:8px"><button class="btn ghost" type="button" id="fi-save">Speichern</button></div>
 
+    <div class="section-h">Datensicherung</div>
+    <p class="hint" style="margin-top:0">Jeden Sonntag gegen 20 Uhr kommt automatisch eine Sicherung aller Daten (Bestellungen, Kunden, Kasse, Sortiment, Termine) als Datei in deinen Telegram-Chat. Die Datei einfach dort liegen lassen.</p>
+    <p id="bk-status" class="sub"></p>
+    <div class="actions">
+      <button class="btn ghost" type="button" id="bk-jetzt">Jetzt an Telegram senden</button>
+      <button class="btn ghost" type="button" id="bk-dl">Auf dieses Handy herunterladen</button>
+      <label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">Sicherung einspielen<input type="file" id="bk-file" accept=".json,application/json" hidden></label>
+    </div>
+
     <div class="section-h">Fahrer-Zugänge</div>
     <p class="hint" style="margin-top:0">Ein Fahrer sieht nur den Tab „Fahrer“: die Kunden seiner Tour, Navi und Kassieren. Keine Kundenkartei, keine Auswertung, keine Einstellungen. Die E-Mail muss kein echtes Postfach sein, z. B. fahrer1@gefluegelverkauf-holle.de.</p>
     <div class="grid">
