@@ -1473,7 +1473,7 @@ $("#ki-file").addEventListener("change",async e=>{
 function renderKi(){
   const q=$("#ki-q").value.trim().toLowerCase();
   const vis=kiDaten.filter(c=>!q||(c.name+" "+c.telefon+" "+c.org+" "+c.ort).toLowerCase().includes(q));
-  $("#ki-list").innerHTML=vis.slice(0,1500).map(c=>`<label><input type="checkbox" data-ki="${esc(c.key)}"${c.an?" checked":""}${c.bekannt?" disabled":""}><span><b>${esc(c.name||"(ohne Namen)")}</b>${c.org&&c.org!==c.name?` <span class="sub">${esc(c.org)}</span>`:""}<br><span class="sub">${esc(c.telefon)}${c.ort?" · "+esc(c.ort):""}</span></span><span class="sub">${c.bekannt?"schon in der Kartei":""}</span></label>`).join("");
+  $("#ki-list").innerHTML=vis.slice(0,5000).map(c=>`<label><input type="checkbox" data-ki="${esc(c.key)}"${c.an?" checked":""}${c.bekannt?" disabled":""}><span><b>${esc(c.name||"(ohne Namen)")}</b>${c.org&&c.org!==c.name?` <span class="sub">${esc(c.org)}</span>`:""}<br><span class="sub">${esc(c.telefon)}${c.ort?" · "+esc(c.ort):""}</span></span><span class="sub">${c.bekannt?"schon in der Kartei":""}</span></label>`).join("");
   $("#ki-info").textContent=`${kiDaten.filter(c=>c.an).length} von ${kiDaten.length} ausgewählt`;
   $("#ki-list").querySelectorAll("[data-ki]").forEach(i=>i.onchange=()=>{const c=kiDaten.find(x=>x.key===i.dataset.ki);c.an=i.checked;$("#ki-info").textContent=`${kiDaten.filter(c=>c.an).length} von ${kiDaten.length} ausgewählt`});
 }
