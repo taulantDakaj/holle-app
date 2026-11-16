@@ -22,6 +22,47 @@ const norm=o=>normPos(norm0(o));
 const TIERE=["Braune Tetra","Braune Tetra Hahn","Schwarze Bovan","Schwarze Bovan Hahn","Weiße Leghorn","Weiße Leghorn Hahn","Sussex hell","Sussex hell Hahn","Sussex dunkel","Sussex dunkel Hahn","Grünleger","Grünleger Hahn","Blauleger","Blauleger Hahn","Maran+","Maran+ Hahn","Italiener silber","Italiener silber Hahn","Italiener rebhuhnfarbig","Italiener rebhuhnfarbig Hahn","Rhodeländer","Rhodeländer Hahn","Dalmatiner","Dalmatiner Hahn","Tricolor","Tricolor Hahn","Goldsperber","Goldsperber Hahn","Königsberger silberblau","Königsberger silberblau Hahn","Blausperber","Blausperber Hahn","Lohmann","Lohmann Hahn","Araucana","Araucana Hahn","Zwerg Welsumer","Zwerg Welsumer Hahn","Zwerg Bielefelder","Zwerg Bielefelder Hahn","Französische Marans","Französische Marans Hahn","Barnevelder","Barnevelder Hahn","Bielefelder Kennhühner","Bielefelder Kennhuhn Hahn","New Hampshire","New Hampshire Hahn","Sulmtaler","Sulmtaler Hahn","Eulenbart","Eulenbart Hahn","Schwedische Blumenhühner","Schwedisches Blumenhuhn Hahn","Vorwerk","Vorwerk Hahn","Zwerg Lachshühner","Zwerg Lachshuhn Hahn","Zwerg Wyandotten","Zwerg Wyandotte Hahn","Sebright","Sebright Hahn","Große Wyandotten","Große Wyandotte Hahn","Zwerg Cochin","Zwerg Cochin Hahn","Zwerg New Hampshire","Zwerg New Hampshire Hahn","Deutsche Lachshühner","Deutsches Lachshuhn Hahn","Große Cochin","Große Cochin Hahn","Brahma","Brahma Hahn","Orpington","Orpington Hahn","Paduaner","Paduaner Hahn","Zwerg Paduaner","Zwerg Paduaner Hahn","Bartzwerge","Bartzwerg Hahn","Seidenhühner","Seidenhuhn Hahn","Watermaalsche Zwerge","Watermaalscher Zwerg Hahn","Ayam Cemani","Ayam Cemani Hahn","Cream Legbar","Cream Legbar Hahn","Olivleger","Olivleger Hahn","Amrock","Amrock Hahn","Zwerg Amrock","Zwerg Amrock Hahn","Houdan","Houdan Hahn","Weißhauben","Weißhaube Hahn","Welsumer","Welsumer Hahn","Zwerg Sussex","Zwerg Sussex Hahn","Moderner Englischer Zwergkämpfer","Moderner Englischer Zwergkämpfer Hahn","Flugenten","Flugerpel","Mularden","Dänenenten","Wildenten","Landenten","Laufenten","Lauferpel","Sachsenenten","Gänse / Gössel","Perlhühner","Fasane","Wachtelhennen","Wachtelhähne","Weiße Puten","Bronzeputen","Mastküken","Masthähnchen 3 Wochen","Masthähnchen schlachtreif","Hühner aussuchen"];
 const PREIS_VORSCHLAG={"Masthähnchen 3 Wochen": 4.5, "Braune Tetra": 13, "Weiße Leghorn": 13, "Sussex hell": 14, "Sussex dunkel": 16, "Blausperber": 14, "Schwarze Bovan": 14, "Goldsperber": 16, "Grünleger": 16, "Maran+": 16, "Italiener silber": 16, "Italiener rebhuhnfarbig": 16, "Rhodeländer": 16, "Deutsche Lachshühner": 36, "Brahma": 42, "Vorwerk": 30, "Schwedische Blumenhühner": 30, "Ayam Cemani": 30, "Olivleger": 30, "Bielefelder Kennhühner": 30, "Barnevelder": 30, "Blauleger": 20, "Dalmatiner": 20, "Tricolor": 20, "Königsberger silberblau": 16, "Lohmann": 13, "Zwerg Welsumer": 18, "Zwerg Bielefelder": 22, "Mastküken": 4.5, "Wachtelhennen": 7, "Wachtelhähne": 7, "Braune Tetra Hahn": 11, "Schwarze Bovan Hahn": 12, "Weiße Leghorn Hahn": 11, "Sussex hell Hahn": 12, "Sussex dunkel Hahn": 14, "Grünleger Hahn": 14, "Blauleger Hahn": 18, "Maran+ Hahn": 14, "Italiener silber Hahn": 14, "Italiener rebhuhnfarbig Hahn": 14, "Rhodeländer Hahn": 14, "Dalmatiner Hahn": 18, "Tricolor Hahn": 18, "Goldsperber Hahn": 14, "Königsberger silberblau Hahn": 14, "Blausperber Hahn": 12, "Lohmann Hahn": 11, "Zwerg Welsumer Hahn": 20, "Zwerg Bielefelder Hahn": 20, "Araucana": 22, "Araucana Hahn": 20, "Französische Marans": 30, "Französische Marans Hahn": 20, "Barnevelder Hahn": 20, "Bielefelder Kennhuhn Hahn": 20, "New Hampshire": 30, "New Hampshire Hahn": 20, "Sulmtaler": 30, "Sulmtaler Hahn": 20, "Eulenbart": 30, "Eulenbart Hahn": 20, "Schwedisches Blumenhuhn Hahn": 20, "Vorwerk Hahn": 20, "Zwerg Lachshühner": 30, "Zwerg Lachshuhn Hahn": 20, "Zwerg Wyandotten": 30, "Zwerg Wyandotte Hahn": 20, "Sebright": 30, "Sebright Hahn": 20, "Große Wyandotten": 30, "Große Wyandotte Hahn": 20, "Zwerg Cochin": 30, "Zwerg Cochin Hahn": 20, "Zwerg New Hampshire": 30, "Zwerg New Hampshire Hahn": 20, "Deutsches Lachshuhn Hahn": 20, "Große Cochin": 30, "Große Cochin Hahn": 20, "Brahma Hahn": 20, "Orpington": 40, "Orpington Hahn": 20, "Paduaner": 35, "Paduaner Hahn": 20, "Zwerg Paduaner": 30, "Zwerg Paduaner Hahn": 20, "Bartzwerge": 30, "Bartzwerg Hahn": 20, "Seidenhühner": 35, "Seidenhuhn Hahn": 20, "Watermaalsche Zwerge": 30, "Watermaalscher Zwerg Hahn": 20, "Ayam Cemani Hahn": 20, "Cream Legbar": 30, "Cream Legbar Hahn": 20, "Olivleger Hahn": 20, "Amrock": 30, "Amrock Hahn": 20, "Zwerg Amrock": 30, "Zwerg Amrock Hahn": 20, "Houdan": 35, "Houdan Hahn": 20, "Weißhauben": 30, "Weißhaube Hahn": 20, "Welsumer": 30, "Welsumer Hahn": 20, "Zwerg Sussex": 30, "Zwerg Sussex Hahn": 20, "Moderner Englischer Zwergkämpfer": 30, "Moderner Englischer Zwergkämpfer Hahn": 20};
 
+/* ---------- Sprache Fahrer-Ansicht ---------- */
+var SPRACHE=(()=>{try{return localStorage.getItem("holle-sprache")||"de"}catch(e){return "de"}})();
+function T(k,v){const t=(TEXTE[SPRACHE]&&TEXTE[SPRACHE][k])||TEXTE.de[k]||k;return v?t.replace(/\{(\w+)\}/g,(_,x)=>v[x]??""):t}
+var TEXTE={
+ de:{heute:"heute",keineTouren:"Keine Touren",kunden:"Kunden",tiere:"Tiere",summe:"Summe",kassiert:"kassiert",nichtErsch:"nicht erschienen",
+  erledigt:"{a} von {b} Kunden erledigt · {p} %",keine:"Keine Bestellungen.",rueck:"Rückgängig",quittung:"Quittung",anrufen:"📞 Anrufen",nichtDa:"Nicht da",
+  bar:"Bar",ueberw:"Überw.",offen:"offen",fertig:"✓ fertig",navi:"Navi",confirmNd:"{k} ist nicht gekommen – kein Verkauf?\nDie Tiere gehen zurück in den Bestand.",
+  stAn:"📍 Standort wird geteilt – Taulant sieht, an welchem Haltepunkt du bist (nur solange diese Seite offen ist).",aus:"Ausschalten",stAus:"📍 Standort ist aus.",teilen:"Standort teilen",
+  schliessen:"Schließen",tag:"Tag",tour:"Tour",sprache:"Sprache",tabFahrer:"Fahrer",abmelden:"Abmelden",
+  hint:"Haltepunkte in Fahr-Reihenfolge. „Navi“ öffnet Google Maps. Bezahlt: Bar, PayPal oder Überweisung antippen. „Nicht da“ = Kunde nicht gekommen, kein Verkauf. Das blaue „i“ zeigt Bild und Beschreibung der Tierart."},
+ en:{heute:"today",keineTouren:"No tours",kunden:"Customers",tiere:"Animals",summe:"Total",kassiert:"collected",nichtErsch:"no-show",
+  erledigt:"{a} of {b} customers done · {p} %",keine:"No orders.",rueck:"Undo",quittung:"Receipt",anrufen:"📞 Call",nichtDa:"Not here",
+  bar:"Cash",ueberw:"Transfer",offen:"open",fertig:"✓ done",navi:"Navigate",confirmNd:"{k} did not come – no sale?\nThe animals go back into stock.",
+  stAn:"📍 Location is being shared – Taulant can see which stop you are at (only while this page is open).",aus:"Turn off",stAus:"📍 Location is off.",teilen:"Share location",
+  schliessen:"Close",tag:"Day",tour:"Tour",sprache:"Language",tabFahrer:"Driver",abmelden:"Sign out",
+  hint:"Stops in driving order. “Navigate” opens Google Maps. Paid: tap Cash, PayPal or Transfer. “Not here” = customer did not come, no sale. The blue “i” shows a picture and description of the breed."},
+ sq:{heute:"sot",keineTouren:"Nuk ka ture",kunden:"Klientë",tiere:"Kafshë",summe:"Shuma",kassiert:"arkëtuar",nichtErsch:"nuk erdhi",
+  erledigt:"{a} nga {b} klientë të kryer · {p} %",keine:"Nuk ka porosi.",rueck:"Anulo",quittung:"Faturë",anrufen:"📞 Telefono",nichtDa:"Nuk erdhi",
+  bar:"Cash",ueberw:"Transfertë",offen:"të hapura",fertig:"✓ mbaruar",navi:"Navigo",confirmNd:"{k} nuk erdhi – nuk ka shitje?\nKafshët kthehen në magazinë.",
+  stAn:"📍 Vendndodhja po ndahet – Taulant sheh në cilën ndalesë je (vetëm sa kohë që kjo faqe është e hapur).",aus:"Fike",stAus:"📍 Vendndodhja është e fikur.",teilen:"Ndaj vendndodhjen",
+  schliessen:"Mbyll",tag:"Dita",tour:"Turi",sprache:"Gjuha",tabFahrer:"Shoferi",abmelden:"Dil",
+  hint:"Ndalesat sipas radhës së rrugës. “Navigo” hap Google Maps. Pagesa: shtyp Cash, PayPal ose Transfertë. “Nuk erdhi” = klienti nuk erdhi, nuk ka shitje. “i” blu tregon foto dhe përshkrim të racës."},
+ ro:{heute:"azi",keineTouren:"Nicio tură",kunden:"Clienți",tiere:"Animale",summe:"Total",kassiert:"încasat",nichtErsch:"nu a venit",
+  erledigt:"{a} din {b} clienți rezolvați · {p} %",keine:"Nicio comandă.",rueck:"Anulează",quittung:"Chitanță",anrufen:"📞 Sună",nichtDa:"Nu a venit",
+  bar:"Numerar",ueberw:"Transfer",offen:"deschise",fertig:"✓ gata",navi:"Navigare",confirmNd:"{k} nu a venit – nicio vânzare?\nAnimalele se întorc în stoc.",
+  stAn:"📍 Locația este partajată – Taulant vede la ce oprire ești (doar cât timp această pagină este deschisă).",aus:"Oprește",stAus:"📍 Locația este oprită.",teilen:"Partajează locația",
+  schliessen:"Închide",tag:"Ziua",tour:"Tura",sprache:"Limba",tabFahrer:"Șofer",abmelden:"Deconectare",
+  hint:"Opririle în ordinea traseului. „Navigare” deschide Google Maps. Plătit: apasă Numerar, PayPal sau Transfer. „Nu a venit” = clientul nu a venit, nicio vânzare. „i” albastru arată poza și descrierea rasei."}
+};
+var MOTIV_X={
+ en:{erster:["First customer happy – off to a great start! 🐔","First one done – here we go! 🚚"],25:["A quarter done – keep it up! 💪","25 % done – you're doing great! 🐔"],
+  50:["Halfway there! Half done – great job! 🙌","50 % done – it's downhill from here! 🚚"],75:["Three quarters done – final sprint! 🏁","Only a quarter left – almost there! 💪"],
+  100:["Tour done! Every customer served – great work, thank you! 🎉","All done – safe drive home and thanks for your effort! 🚚🐔"]},
+ sq:{erster:["Klienti i parë i kënaqur – fillim i mbarë! 🐔","I pari u krye – vazhdojmë! 🚚"],25:["Një e katërta u krye – vazhdo kështu! 💪","25 % të kryera – po shkon shumë mirë! 🐔"],
+  50:["Gjysma u krye – bravo! 🙌","50 % të kryera – tani është më lehtë! 🚚"],75:["Tre të katërtat u kryen – sprinti i fundit! 🏁","Mbeti vetëm një e katërta – pothuajse mbarove! 💪"],
+  100:["Turi mbaroi! Të gjithë klientët u shërbyen – punë e shkëlqyer, faleminderit! 🎉","Gjithçka u krye – rrugë të mbarë për në shtëpi dhe faleminderit! 🚚🐔"]},
+ ro:{erster:["Primul client e mulțumit – început bun! 🐔","Primul e gata – pornim! 🚚"],25:["Un sfert gata – ține-o tot așa! 💪","25 % gata – te descurci foarte bine! 🐔"],
+  50:["Jumătate gata – bravo! 🙌","50 % gata – de acum e mai ușor! 🚚"],75:["Trei sferturi gata – ultima sută de metri! 🏁","Mai e doar un sfert – aproape gata! 💪"],
+  100:["Tura e gata! Toți clienții serviți – treabă excelentă, mulțumesc! 🎉","Totul e gata – drum bun spre casă și mulțumesc pentru efort! 🚚🐔"]}
+};
+
 /* ---------- Hilfen ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -689,7 +730,7 @@ function renderNeu(){
     neu.map(o=>{const tr=tourById(o.tour);return `<div class="neuitem">
       <div class="neuhead"><b>${esc(o.kunde)}</b> <span class="sub">${esc(o.telefon)}${o.wohnort?" · "+esc(o.wohnort):""}</span></div>
       <div><span class="odot" style="background:${ortFarbe(o.ort)}"></span>${esc(dShort(o.datum))} · ${esc(tr?tr.nr:o.tour)} · ${esc(o.ort)}</div>
-      <div class="tiere">${esc(tierText(o,", "))}${betrag(o)?` · ${esc(eur(betrag(o)))}`:""}</div>
+      <div class="tiere">${tierHtml(o)}${betrag(o)?` · ${esc(eur(betrag(o)))}`:""}</div>
       ${o.bemerkung?`<div class="sub">💬 ${esc(o.bemerkung)}</div>`:""}
       <div class="btns">
         <a class="btn wa" href="${esc(waLinkOrder(o))}" target="_blank" rel="noopener" data-ok="${esc(o.id)}">Bestätigen + WhatsApp</a>
@@ -739,15 +780,17 @@ function renderProducts(){
   const tb=$("#pr-table"); if(!tb) return;
   $("#dl-kat").innerHTML=[...new Set(products.map(p=>p.category))].map(k=>`<option value="${esc(k)}">`).join("");
   let last=null;
-  tb.innerHTML=`<thead><tr><th>In App</th><th>Tierart</th><th class="num">Preis €</th><th class="num">Hahn €</th><th class="num">Bestand</th><th>Hinweis</th></tr></thead><tbody>`+
+  tb.innerHTML=`<thead><tr><th>In App</th><th>Tierart</th><th class="num">Preis €</th><th class="num">Hahn €</th><th class="num">Bestand</th><th>Hinweis</th><th>Bild & Info</th></tr></thead><tbody>`+
     products.map(p=>{const head=p.category!==last?(last=p.category):null;
-      return (head?`<tr class="tot"><td colspan="6">${esc(head)}</td></tr>`:"")+
+      return (head?`<tr class="tot"><td colspan="7">${esc(head)}</td></tr>`:"")+
       `<tr><td><input type="checkbox" data-pid="${p.id}" data-f="available" ${p.available?"checked":""} style="width:22px;height:22px"></td>
        <td>${esc(p.name)}</td>
        <td class="num"><input data-pid="${p.id}" data-f="price" value="${p.price??""}" inputmode="decimal" style="width:80px;text-align:right"></td>
        <td class="num"><input data-pid="${p.id}" data-f="price_hahn" value="${p.price_hahn??""}" inputmode="decimal" style="width:80px;text-align:right"></td>
        <td class="num"><input data-pid="${p.id}" data-f="bestand" value="${p.bestand??""}" inputmode="numeric" placeholder="∞" style="width:70px;text-align:right${p.bestand===0?";color:var(--warn);font-weight:700":""}"></td>
-       <td><input data-pid="${p.id}" data-f="price_note" value="${esc(p.price_note??"")}" placeholder="z. B. je nach Alter"></td></tr>`}).join("")+`</tbody>`;
+       <td><input data-pid="${p.id}" data-f="price_note" value="${esc(p.price_note??"")}" placeholder="z. B. je nach Alter"></td>
+       <td><button class="btn ghost tinfo-edit" type="button" data-tinfo="${p.id}">${p.bild_url?`<img src="${esc(p.bild_url)}" alt="">`:"📷"} ${p.bild_url||p.beschreibung?"ändern":"hinzufügen"}</button></td></tr>`}).join("")+`</tbody>`;
+  tb.querySelectorAll("[data-tinfo]").forEach(b=>b.onclick=()=>tierInfoBearbeiten(+b.dataset.tinfo));
   tb.querySelectorAll("input[data-pid]").forEach(i=>i.addEventListener("change",()=>{
     const f=i.dataset.f;let v;
     if(f==="available") v=i.checked;
@@ -1046,7 +1089,7 @@ function renderKasse(){
   $("#ka-kpis").innerHTML=`<div class="kpi"><b>${esc(eur(s.bar))}</b><span>Bar</span></div><div class="kpi"><b>${esc(eur(s.paypal))}</b><span>PayPal</span></div><div class="kpi"><b>${esc(eur(s.ueberweisung))}</b><span>Überweisung</span></div><div class="kpi"><b>${s.offenN}</b><span>noch offen${s.offen?" · "+esc(eur(s.offen)):""}</span></div>`;
   $("#ka-list").innerHTML=os.length?os.map(o=>{const z=o.zahlung;return `<div class="kitem${z?" bezahlt":""}" data-oid="${esc(o.id)}">
       <div class="kl"><span class="odot" style="background:${ortFarbe(o.ort)}"></span><b>${esc(o.kunde)}</b> <span class="sub">${esc(o.ort)}</span>
-        <div class="sub">${esc(tierText(o,", "))}</div></div>
+        <div class="sub">${tierHtml(o)}</div></div>
       ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span>
           ${abg?"":`<button class="linkbtn" type="button" data-kundo="${esc(o.id)}">ändern</button>`}</div>`
         :`<div class="kr"><input data-kbetrag="${esc(o.id)}" inputmode="decimal" value="${betrag(o)||""}" placeholder="€">
@@ -1269,38 +1312,38 @@ function renderFahrer(){
   const tage=[...new Set(act.map(o=>o.datum))].sort().slice(0,20);
   const def=tage.find(d=>d>=h)||tage[tage.length-1]||"";
   const cur=tage.includes(dSel.value)?dSel.value:def;
-  dSel.innerHTML=tage.map(d=>`<option value="${d}"${d===cur?" selected":""}>${esc(dShort(d))}${d===h?" (heute)":""}</option>`).join("")||`<option value="">Keine Touren</option>`;
+  dSel.innerHTML=tage.map(d=>`<option value="${d}"${d===cur?" selected":""}>${esc(dShort(d))}${d===h?" ("+T("heute")+")":""}</option>`).join("")||`<option value="">${T("keineTouren")}</option>`;
   const tSel=$("#fr-tour"), ts=[...new Set(act.filter(o=>o.datum===cur).map(o=>o.tour))].sort();
   const tc=ts.includes(tSel.value)?tSel.value:ts[0]||"";
   tSel.innerHTML=ts.map(t=>{const tr=tourById(t);return `<option value="${t}"${t===tc?" selected":""}>${esc(tr?tr.nr+" – "+tr.name:t)}</option>`}).join("");
   const os=act.filter(o=>o.datum===cur&&o.tour===tc), tr=tourById(tc);
   const bez=os.filter(o=>o.zahlung).reduce((a,o)=>a+(+o.zahlung.betrag||0),0), nd=os.filter(o=>o.nichtDa).length;
-  $("#fr-kpis").innerHTML=os.length?`<div class="kpi"><b>${os.length}</b><span>Kunden</span></div><div class="kpi"><b>${os.reduce((a,o)=>a+stueck(o),0)}</b><span>Tiere</span></div><div class="kpi"><b>${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</b><span>Summe</span></div><div class="kpi"><b>${esc(eur(bez))}</b><span>kassiert (${os.filter(o=>o.zahlung).length})</span></div>${nd?`<div class="kpi"><b>${nd}</b><span>nicht erschienen</span></div>`:""}`:"";
+  $("#fr-kpis").innerHTML=os.length?`<div class="kpi"><b>${os.length}</b><span>${T("kunden")}</span></div><div class="kpi"><b>${os.reduce((a,o)=>a+stueck(o),0)}</b><span>${T("tiere")}</span></div><div class="kpi"><b>${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</b><span>${T("summe")}</span></div><div class="kpi"><b>${esc(eur(bez))}</b><span>${T("kassiert")} (${os.filter(o=>o.zahlung).length})</span></div>${nd?`<div class="kpi"><b>${nd}</b><span>${T("nichtErsch")}</span></div>`:""}`:"";
   if(os.length){const fertig=os.filter(o=>o.zahlung||o.nichtDa).length,pz=Math.round(fertig/os.length*100);
-    $("#fr-kpis").insertAdjacentHTML("afterbegin",`<div class="fortschritt"><div class="fbar"><i style="width:${pz}%"></i></div><span>${fertig} von ${os.length} Kunden erledigt · ${pz} %</span></div>`);
+    $("#fr-kpis").insertAdjacentHTML("afterbegin",`<div class="fortschritt"><div class="fbar"><i style="width:${pz}%"></i></div><span>${T("erledigt",{a:fertig,b:os.length,p:pz})}</span></div>`);
     motivation(cur,tc,fertig,os.length);}
   if(!tr){$("#fr-list").innerHTML="";return}
   const mapsLink=q=>"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q);
   const zeile=o=>{const z=o.zahlung, nr=telKey(o.telefon);
-    if(o.nichtDa) return `<div class="kitem bezahlt"><div class="kl"><b>${esc(o.kunde)}</b> <span class="chip">nicht erschienen</span><div class="sub">${esc(tierText(o,", "))}</div></div>
-      <div class="kr"><button class="btn ghost" type="button" data-nda="${esc(o.id)}">Rückgängig</button></div></div>`;
+    if(o.nichtDa) return `<div class="kitem bezahlt"><div class="kl"><b>${esc(o.kunde)}</b> <span class="chip">${T("nichtErsch")}</span><div class="sub">${esc(tierText(o,", "))}</div></div>
+      <div class="kr"><button class="btn ghost" type="button" data-nda="${esc(o.id)}">${T("rueck")}</button></div></div>`;
     return `<div class="kitem${z?" bezahlt":""}">
     <div class="kl"><b>${esc(o.kunde)}</b> ${o.telefon?`<a class="sub" href="tel:${esc(String(o.telefon).replace(/\s/g,""))}">📞 ${esc(o.telefon)}</a>`:""}
-      <div>${esc(tierText(o,", "))}</div>${o.bemerkung?`<div class="sub">💬 ${esc(o.bemerkung)}</div>`:""}
-      ${o.ort===HOME&&o.adresse?`<div class="sub">🏠 ${esc(o.adresse)} <a href="${esc(mapsLink(o.adresse))}" target="_blank" rel="noopener">Navi</a></div>`:""}</div>
-    ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span> <button class="btn ghost" type="button" data-q="${esc(o.id)}">Quittung</button></div>`
+      <div>${tierHtml(o)}</div>${o.bemerkung?`<div class="sub">💬 ${esc(o.bemerkung)}</div>`:""}
+      ${o.ort===HOME&&o.adresse?`<div class="sub">🏠 ${esc(o.adresse)} <a href="${esc(mapsLink(o.adresse))}" target="_blank" rel="noopener">${T("navi")}</a></div>`:""}</div>
+    ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span> <button class="btn ghost" type="button" data-q="${esc(o.id)}">${T("quittung")}</button></div>`
       :`<div class="kr"><input data-fb="${esc(o.id)}" inputmode="decimal" value="${betrag(o)||""}" placeholder="€" style="width:80px">
-        <div class="kbtns"><button class="btn" type="button" data-fz="bar" data-fid="${esc(o.id)}">Bar</button><button class="btn ghost" type="button" data-fz="paypal" data-fid="${esc(o.id)}">PayPal</button><button class="btn ghost" type="button" data-fz="ueberweisung" data-fid="${esc(o.id)}">Überw.</button></div>
-        <div class="kbtns">${nr?`<a class="btn ghost" href="tel:${esc(String(o.telefon).replace(/\s/g,""))}">📞 Anrufen</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${esc(nr)}?text=${encodeURIComponent(woBistDuText(o))}">WhatsApp</a>`:""}
-        <button class="btn warn" type="button" data-nd="${esc(o.id)}">Nicht da</button></div></div>`}
+        <div class="kbtns"><button class="btn" type="button" data-fz="bar" data-fid="${esc(o.id)}">${T("bar")}</button><button class="btn ghost" type="button" data-fz="paypal" data-fid="${esc(o.id)}">PayPal</button><button class="btn ghost" type="button" data-fz="ueberweisung" data-fid="${esc(o.id)}">${T("ueberw")}</button></div>
+        <div class="kbtns">${nr?`<a class="btn ghost" href="tel:${esc(String(o.telefon).replace(/\s/g,""))}">${T("anrufen")}</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${esc(nr)}?text=${encodeURIComponent(woBistDuText(o))}">WhatsApp</a>`:""}
+        <button class="btn warn" type="button" data-nd="${esc(o.id)}">${T("nichtDa")}</button></div></div>`}
   </div>`};
   $("#fr-list").innerHTML=tr.stops.map(st=>{
     const so=os.filter(o=>o.ort===st[1]).sort((a,b)=>a.kunde.localeCompare(b.kunde,"de")); if(!so.length) return "";
     const hh=st[1]===HOME?null:halt(st[1]), adr=hh?[hh.laden,navi(hh)].filter(Boolean).join(", "):"";
     const offen=so.filter(o=>!o.zahlung&&!o.nichtDa).length;
     return `<div class="stop"><div class="stophead"><div><b>${esc(st[0]?st[0]+" · ":"")}${esc(st[1])}</b><div class="sub">${esc(adr)}</div></div>
-      <div class="btns"><span class="chip${offen?"":" abgeholt"}">${offen?offen+" offen":"✓ fertig"}</span>${hh&&navi(hh)?`<a class="btn ghost" target="_blank" rel="noopener" href="${esc(mapsLink(navi(hh)))}">Navi</a>`:""}</div></div>
-      ${so.map(zeile).join("")}</div>`}).join("")||`<p class="empty">Keine Bestellungen.</p>`;
+      <div class="btns"><span class="chip${offen?"":" abgeholt"}">${offen?offen+" "+T("offen"):T("fertig")}</span>${hh&&navi(hh)?`<a class="btn ghost" target="_blank" rel="noopener" href="${esc(mapsLink(navi(hh)))}">${T("navi")}</a>`:""}</div></div>
+      ${so.map(zeile).join("")}</div>`}).join("")||`<p class="empty">${T("keine")}</p>`;
   $("#fr-list").querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{const i=$("#fr-list").querySelector(`[data-fb="${CSS.escape(b.dataset.fid)}"]`);kaZahlung(b.dataset.fid,b.dataset.fz,i?i.value:undefined)});
   $("#fr-list").querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>quittung(b.dataset.q));
   $("#fr-list").querySelectorAll("[data-nd]").forEach(b=>b.onclick=()=>nichtDa(b.dataset.nd,true));
@@ -1488,7 +1531,7 @@ function woBistDuText(o){
 }
 async function nichtDa(id,an){
   const o=orders.find(x=>x.id===id); if(!o) return;
-  if(an&&!confirm(`${o.kunde} ist nicht gekommen – kein Verkauf?\nDie Tiere gehen zurück in den Bestand.`)) return;
+  if(an&&!confirm(T("confirmNd",{k:o.kunde}))) return;
   const {id:_,...rest}=o, now=new Date().toISOString(), wer=(window.__holle.user&&window.__holle.user.email)||"";
   const upd={...rest,updated:now};
   if(an){upd.nichtDa={zeit:now,von:wer,vorher:o.status};upd.status="storniert";upd.bemerkung=[o.bemerkung,"Nicht erschienen "+new Date().toLocaleDateString("de-DE")].filter(Boolean).join(" · ")}
@@ -1528,8 +1571,8 @@ async function renderStandort(){
   const box=$("#fr-standort"); if(!box) return;
   if(ROLLE==="fahrer"){
     box.innerHTML=standortWatch!=null
-      ?`<div class="kabschluss done">📍 <b>Standort wird geteilt</b> – Taulant sieht, an welchem Haltepunkt du bist (nur solange diese Seite offen ist). <button class="btn ghost" type="button" id="st-aus">Ausschalten</button></div>`
-      :`<div class="kabschluss">📍 Standort ist aus. <button class="btn" type="button" id="st-an">Standort teilen</button></div>`;
+      ?`<div class="kabschluss done">${esc(T("stAn"))} <button class="btn ghost" type="button" id="st-aus">${T("aus")}</button></div>`
+      :`<div class="kabschluss">${esc(T("stAus"))} <button class="btn" type="button" id="st-an">${T("teilen")}</button></div>`;
     const a=$("#st-an"),b=$("#st-aus"); if(a)a.onclick=standortStart; if(b)b.onclick=standortStop; return;
   }
   const {data}=await SB.from("fahrer_position").select("*").order("zeit",{ascending:false});
@@ -1561,7 +1604,7 @@ function motivation(datum,tour,fertig,gesamt){
   if(gezeigt===null){try{localStorage.setItem(key,JSON.stringify(stufen))}catch(e){}return} // beim Öffnen nichts nachholen
   const neu=stufen.filter(x=>!gezeigt.includes(x)); if(!neu.length) return;
   try{localStorage.setItem(key,JSON.stringify(stufen))}catch(e){}
-  const st=neu[neu.length-1], liste=MOTIV[st], text=liste[Math.floor(Math.random()*liste.length)];
+  const st=neu[neu.length-1], liste=(SPRACHE!=="de"&&MOTIV_X[SPRACHE]&&MOTIV_X[SPRACHE][st])||MOTIV[st], text=liste[Math.floor(Math.random()*liste.length)];
   const name=vorname(window.__holle.user?.user_metadata?.name||"");
   zeigeMotivation((name?name+", ":"")+text, st==="100");
 }
@@ -1571,4 +1614,91 @@ function zeigeMotivation(text,gross){
   d.innerHTML=`<div>${esc(text)}</div>`; d.onclick=()=>d.remove(); document.body.appendChild(d);
   try{navigator.vibrate&&navigator.vibrate(gross?[80,60,80,60,160]:80)}catch(e){}
   setTimeout(()=>d.remove(),gross?7000:4500);
+}
+
+/* ---------- Bild & Beschreibung je Tierart (Info-Knopf) ---------- */
+const TIER_EINZAHL={"bielefelder kennhuhn":"Bielefelder Kennhühner","schwedisches blumenhuhn":"Schwedische Blumenhühner","zwerg lachshuhn":"Zwerg Lachshühner","zwerg wyandotte":"Zwerg Wyandotten","große wyandotte":"Große Wyandotten","deutsches lachshuhn":"Deutsche Lachshühner","bartzwerg":"Bartzwerge","seidenhuhn":"Seidenhühner","watermaalscher zwerg":"Watermaalsche Zwerge","weißhaube":"Weißhauben","moderner englischer zwergkämpfer":"Mod. Engl. Zwergkämpfer","flugerpel":"Flugenten","lauferpel":"Laufenten","wachtelhähne":"Wachtelhennen","wachtelhahn":"Wachtelhennen"};
+function produktZuTier(tier){
+  const b=String(tier||"").trim().replace(/\s+Hahn$/i,"").toLowerCase(), n=(TIER_EINZAHL[b]||b).toLowerCase();
+  return products.find(p=>p.name.toLowerCase()===n)||null;
+}
+function tierHtml(o){
+  return (o.positionen||[]).filter(p=>p.tier&&+p.anzahl).map(p=>{const pr=produktZuTier(p.tier),hat=pr&&(pr.bild_url||pr.beschreibung);
+    return `<span class="tpos">${esc(p.anzahl)} × ${esc(p.tier)}${hat?` <button type="button" class="tinfo" data-ti="${pr.id}" aria-label="Info zu ${esc(pr.name)}">i</button>`:""}</span>`}).join(", ");
+}
+document.addEventListener("click",e=>{const b=e.target.closest(".tinfo");if(!b)return;e.preventDefault();e.stopPropagation();zeigeTierInfo(+b.dataset.ti)},true);
+function tierDlg(){
+  let d=$("#tierDlg"); if(d) return d;
+  d=document.createElement("div"); d.id="tierDlg"; d.className="carddlg"; d.hidden=true;
+  d.innerHTML=`<div class="cardbox" style="max-width:480px"><div id="tierDlgInhalt"></div></div>`;
+  d.addEventListener("click",e=>{if(e.target===d)d.hidden=true}); document.body.appendChild(d); return d;
+}
+function zeigeTierInfo(id){
+  const p=products.find(x=>x.id===id); if(!p) return;
+  const d=tierDlg();
+  $("#tierDlgInhalt").innerHTML=`<h3>${esc(p.name)}</h3><div class="sub" style="margin:-6px 0 10px">${esc(p.category||"")}</div>
+    ${p.bild_url?`<img class="tierbild" src="${esc(p.bild_url)}" alt="${esc(p.name)}">`:""}
+    ${p.beschreibung?`<p style="white-space:pre-line;margin:10px 0 0">${esc(p.beschreibung)}</p>`:""}
+    <div class="actions" style="margin-top:12px"><button class="btn ghost" type="button" id="tierDlgZu">${T("schliessen")}</button></div>`;
+  $("#tierDlgZu").onclick=()=>{d.hidden=true}; d.hidden=false;
+}
+async function bildVerkleinern(file,max=1400){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=url});
+    const f=Math.min(1,max/Math.max(img.width,img.height)), c=document.createElement("canvas");
+    c.width=Math.round(img.width*f); c.height=Math.round(img.height*f); c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(r,"image/jpeg",0.82));
+  }finally{URL.revokeObjectURL(url)}
+}
+function tierInfoBearbeiten(id){
+  const p=products.find(x=>x.id===id); if(!p) return;
+  const d=tierDlg(); let neuesBild=null, bildWeg=false;
+  $("#tierDlgInhalt").innerHTML=`<h3>${esc(p.name)}</h3>
+    <p class="hint" style="margin-top:0">Das sehen deine Fahrer beim „i“ neben der Tierart, damit sie das Tier sicher erkennen.</p>
+    <div id="ti-vorschau">${p.bild_url?`<img class="tierbild" src="${esc(p.bild_url)}" alt="">`:`<p class="sub">Noch kein Bild.</p>`}</div>
+    <div class="actions" style="margin:8px 0"><label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">📷 Foto wählen<input type="file" id="ti-file" accept="image/*" hidden></label>
+      ${p.bild_url?'<button class="btn ghost" type="button" id="ti-weg">Bild entfernen</button>':""}</div>
+    <label class="full">Beschreibung / Erkennungsmerkmale<textarea id="ti-text" rows="5" placeholder="z. B. Gefieder schwarz mit grünem Glanz, roter Kamm, Federfüße, legt braune Eier …">${esc(p.beschreibung||"")}</textarea></label>
+    <div class="actions" style="margin-top:12px"><button class="btn" type="button" id="ti-save">Speichern</button><button class="btn ghost" type="button" id="ti-zu">Abbrechen</button></div>`;
+  $("#ti-file").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{neuesBild=await bildVerkleinern(f);bildWeg=false;$("#ti-vorschau").innerHTML=`<img class="tierbild" src="${URL.createObjectURL(neuesBild)}" alt="">`}catch(x){toast("Bild konnte nicht gelesen werden.")}};
+  const w=$("#ti-weg"); if(w) w.onclick=()=>{bildWeg=true;neuesBild=null;$("#ti-vorschau").innerHTML=`<p class="sub">Bild wird entfernt.</p>`};
+  $("#ti-zu").onclick=()=>{d.hidden=true};
+  $("#ti-save").onclick=async()=>{
+    $("#ti-save").disabled=true;
+    try{
+      const patch={beschreibung:$("#ti-text").value.trim()||null};
+      if(neuesBild){
+        const pfad=`p${p.id}-${Date.now()}.jpg`;
+        const {error}=await SB.storage.from("tierbilder").upload(pfad,neuesBild,{contentType:"image/jpeg",upsert:true});
+        if(error) throw error;
+        patch.bild_url=SB.storage.from("tierbilder").getPublicUrl(pfad).data.publicUrl;
+      } else if(bildWeg) patch.bild_url=null;
+      const alt=p.bild_url&&(neuesBild||bildWeg)?p.bild_url.split("/tierbilder/")[1]:null;
+      await patchProduct(p.id,patch);
+      if(alt) SB.storage.from("tierbilder").remove([decodeURIComponent(alt)]).catch(()=>{});
+      d.hidden=true; renderAll();
+    }catch(e){toast("Speichern fehlgeschlagen: "+(e.message||e))}
+    finally{const b=$("#ti-save");if(b)b.disabled=false}
+  };
+  d.hidden=false;
+}
+
+
+/* ---------- Sprachauswahl ---------- */
+function spracheAnwenden(){
+  const lab=(id,k)=>{const e=$(id);if(e&&e.parentElement&&e.parentElement.tagName==="LABEL"){e.parentElement.firstChild.nodeValue=T(k)}};
+  lab("#fr-datum","tag"); lab("#fr-tour","tour");
+  const h=$("#tab-fahrer > p.hint:last-of-type"); if(h) h.textContent=T("hint");
+  const tb=document.querySelector('nav.tabs button[data-tab=fahrer]'); if(tb) tb.textContent=T("tabFahrer");
+  if(ROLLE==="fahrer"){const lo=$("#logout");if(lo)lo.textContent=T("abmelden")}
+  document.documentElement.lang=SPRACHE;
+}
+{
+  const box=document.createElement("div"); box.className="sprachwahl";
+  box.innerHTML=[["de","🇩🇪 Deutsch"],["en","🇬🇧 English"],["sq","🇦🇱 Shqip"],["ro","🇷🇴 Română"]].map(([c,n])=>`<button type="button" data-lang="${c}" aria-pressed="${c===SPRACHE}">${n}</button>`).join("");
+  $("#tab-fahrer").prepend(box);
+  box.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>{SPRACHE=b.dataset.lang;try{localStorage.setItem("holle-sprache",SPRACHE)}catch(e){}
+    box.querySelectorAll("[data-lang]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang===SPRACHE));spracheAnwenden();renderFahrer();renderStandort()});
+  spracheAnwenden();
 }

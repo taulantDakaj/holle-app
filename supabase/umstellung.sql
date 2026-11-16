@@ -552,3 +552,9 @@ drop policy if exists eigene on fahrer_position;
 create policy eigene on fahrer_position for all to authenticated
   using (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')))
   with check (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and (is_fahrer() or is_staff()));
+
+-- ---------- Bild & Beschreibung je Tierart (Bilder liegen im Storage-Bucket „tierbilder“, siehe storage.sql) ----------
+alter table products add column if not exists bild_url text;
+alter table products add column if not exists beschreibung text;
+drop policy if exists fahrer_read on products;
+create policy fahrer_read on products for select to authenticated using (is_fahrer());

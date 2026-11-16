@@ -73,3 +73,9 @@ body.rolle-fahrer nav.tabs button:not([data-tab=fahrer]),body.rolle-fahrer #neuB
 .motiv{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:50;max-width:92vw;width:380px;background:#1b5e20;color:#fff;border-radius:16px;padding:16px 18px;font:700 1.1rem/1.35 var(--body,inherit);text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:motivIn .35s ease-out}
 .motiv.gross{top:50%;bottom:auto;transform:translate(-50%,-50%);font-size:1.35rem;padding:26px 22px;background:linear-gradient(135deg,#b3121f,#5e0810)}
 @keyframes motivIn{from{opacity:0;margin-bottom:-20px}to{opacity:1;margin-bottom:0}}
+.tpos{white-space:nowrap}
+.tinfo{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:0;background:#1565c0;color:#fff;font:700 13px/1 Georgia,serif;font-style:italic;cursor:pointer;vertical-align:middle;margin-left:2px;padding:0}
+.tierbild{width:100%;max-height:60vh;object-fit:contain;border-radius:10px;background:#eee;display:block}
+.tinfo-edit{white-space:nowrap;gap:6px}
+.tinfo-edit img{width:28px;height:28px;object-fit:cover;border-radius:4px}
+.sprachwahl{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.sprachwahl button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 10px;font:600 .88rem inherit;cursor:pointer}.sprachwahl button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
