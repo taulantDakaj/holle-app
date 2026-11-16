@@ -1,4 +1,4 @@
-import { TOURS as TOURS_BASE, ORT_FARBE } from '../tours.js';
+import { TOURS as TOURS_BASE, ORT_FARBE, ORT_KOORD } from '../tours.js';
 
 /* ---------- Stammdaten ---------- */
 const TOURS=structuredClone(TOURS_BASE);
@@ -1265,7 +1265,7 @@ function renderBewert(){
 function renderFahrer(){
   const dSel=$("#fr-datum"); if(!dSel) return;
   const h=iso(new Date()), vor=iso(new Date(Date.now()-3*864e5));
-  const act=orders.filter(o=>o.status!=="storniert"&&o.datum>=vor&&o.tour!=="R");
+  const act=orders.filter(o=>(o.status!=="storniert"||o.nichtDa)&&o.datum>=vor&&o.tour!=="R");
   const tage=[...new Set(act.map(o=>o.datum))].sort().slice(0,20);
   const def=tage.find(d=>d>=h)||tage[tage.length-1]||"";
   const cur=tage.includes(dSel.value)?dSel.value:def;
@@ -1274,27 +1274,34 @@ function renderFahrer(){
   const tc=ts.includes(tSel.value)?tSel.value:ts[0]||"";
   tSel.innerHTML=ts.map(t=>{const tr=tourById(t);return `<option value="${t}"${t===tc?" selected":""}>${esc(tr?tr.nr+" – "+tr.name:t)}</option>`}).join("");
   const os=act.filter(o=>o.datum===cur&&o.tour===tc), tr=tourById(tc);
-  const bez=os.filter(o=>o.zahlung).reduce((a,o)=>a+(+o.zahlung.betrag||0),0);
-  $("#fr-kpis").innerHTML=os.length?`<div class="kpi"><b>${os.length}</b><span>Kunden</span></div><div class="kpi"><b>${os.reduce((a,o)=>a+stueck(o),0)}</b><span>Tiere</span></div><div class="kpi"><b>${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</b><span>Summe</span></div><div class="kpi"><b>${esc(eur(bez))}</b><span>kassiert (${os.filter(o=>o.zahlung).length})</span></div>`:"";
+  const bez=os.filter(o=>o.zahlung).reduce((a,o)=>a+(+o.zahlung.betrag||0),0), nd=os.filter(o=>o.nichtDa).length;
+  $("#fr-kpis").innerHTML=os.length?`<div class="kpi"><b>${os.length}</b><span>Kunden</span></div><div class="kpi"><b>${os.reduce((a,o)=>a+stueck(o),0)}</b><span>Tiere</span></div><div class="kpi"><b>${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</b><span>Summe</span></div><div class="kpi"><b>${esc(eur(bez))}</b><span>kassiert (${os.filter(o=>o.zahlung).length})</span></div>${nd?`<div class="kpi"><b>${nd}</b><span>nicht erschienen</span></div>`:""}`:"";
   if(!tr){$("#fr-list").innerHTML="";return}
   const mapsLink=q=>"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q);
-  const zeile=o=>{const z=o.zahlung;return `<div class="kitem${z?" bezahlt":""}">
+  const zeile=o=>{const z=o.zahlung, nr=telKey(o.telefon);
+    if(o.nichtDa) return `<div class="kitem bezahlt"><div class="kl"><b>${esc(o.kunde)}</b> <span class="chip">nicht erschienen</span><div class="sub">${esc(tierText(o,", "))}</div></div>
+      <div class="kr"><button class="btn ghost" type="button" data-nda="${esc(o.id)}">Rückgängig</button></div></div>`;
+    return `<div class="kitem${z?" bezahlt":""}">
     <div class="kl"><b>${esc(o.kunde)}</b> ${o.telefon?`<a class="sub" href="tel:${esc(String(o.telefon).replace(/\s/g,""))}">📞 ${esc(o.telefon)}</a>`:""}
       <div>${esc(tierText(o,", "))}</div>${o.bemerkung?`<div class="sub">💬 ${esc(o.bemerkung)}</div>`:""}
       ${o.ort===HOME&&o.adresse?`<div class="sub">🏠 ${esc(o.adresse)} <a href="${esc(mapsLink(o.adresse))}" target="_blank" rel="noopener">Navi</a></div>`:""}</div>
     ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span> <button class="btn ghost" type="button" data-q="${esc(o.id)}">Quittung</button></div>`
       :`<div class="kr"><input data-fb="${esc(o.id)}" inputmode="decimal" value="${betrag(o)||""}" placeholder="€" style="width:80px">
-        <div class="kbtns"><button class="btn" type="button" data-fz="bar" data-fid="${esc(o.id)}">Bar</button><button class="btn ghost" type="button" data-fz="paypal" data-fid="${esc(o.id)}">PayPal</button><button class="btn ghost" type="button" data-fz="ueberweisung" data-fid="${esc(o.id)}">Überw.</button></div></div>`}
+        <div class="kbtns"><button class="btn" type="button" data-fz="bar" data-fid="${esc(o.id)}">Bar</button><button class="btn ghost" type="button" data-fz="paypal" data-fid="${esc(o.id)}">PayPal</button><button class="btn ghost" type="button" data-fz="ueberweisung" data-fid="${esc(o.id)}">Überw.</button></div>
+        <div class="kbtns">${nr?`<a class="btn ghost" href="tel:${esc(String(o.telefon).replace(/\s/g,""))}">📞 Anrufen</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${esc(nr)}?text=${encodeURIComponent(woBistDuText(o))}">WhatsApp</a>`:""}
+        <button class="btn warn" type="button" data-nd="${esc(o.id)}">Nicht da</button></div></div>`}
   </div>`};
   $("#fr-list").innerHTML=tr.stops.map(st=>{
     const so=os.filter(o=>o.ort===st[1]).sort((a,b)=>a.kunde.localeCompare(b.kunde,"de")); if(!so.length) return "";
     const hh=st[1]===HOME?null:halt(st[1]), adr=hh?[hh.laden,navi(hh)].filter(Boolean).join(", "):"";
-    const offen=so.filter(o=>!o.zahlung).length;
+    const offen=so.filter(o=>!o.zahlung&&!o.nichtDa).length;
     return `<div class="stop"><div class="stophead"><div><b>${esc(st[0]?st[0]+" · ":"")}${esc(st[1])}</b><div class="sub">${esc(adr)}</div></div>
       <div class="btns"><span class="chip${offen?"":" abgeholt"}">${offen?offen+" offen":"✓ fertig"}</span>${hh&&navi(hh)?`<a class="btn ghost" target="_blank" rel="noopener" href="${esc(mapsLink(navi(hh)))}">Navi</a>`:""}</div></div>
       ${so.map(zeile).join("")}</div>`}).join("")||`<p class="empty">Keine Bestellungen.</p>`;
   $("#fr-list").querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{const i=$("#fr-list").querySelector(`[data-fb="${CSS.escape(b.dataset.fid)}"]`);kaZahlung(b.dataset.fid,b.dataset.fz,i?i.value:undefined)});
   $("#fr-list").querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>quittung(b.dataset.q));
+  $("#fr-list").querySelectorAll("[data-nd]").forEach(b=>b.onclick=()=>nichtDa(b.dataset.nd,true));
+  $("#fr-list").querySelectorAll("[data-nda]").forEach(b=>b.onclick=()=>nichtDa(b.dataset.nda,false));
 }
 ["#fr-datum","#fr-tour"].forEach(s=>$(s).addEventListener("change",renderFahrer));
 
@@ -1470,3 +1477,65 @@ $("#fz-add").onclick=async()=>{
 };
 if(ROLLE!=="admin"){const s=$("#fz-add")?.closest("section");document.querySelectorAll("#fz-name,#fz-email,#fz-pw,#fz-add").forEach(e=>e.disabled=true)}
 ladeFahrer();
+
+/* ---------- Fahrer: Kunde nicht da / Kunde anschreiben ---------- */
+function woBistDuText(o){
+  const t=tourById(o.tour), st=t?t.stops.find(s=>s[1]===o.ort):null;
+  return `Hallo ${vorname(o.kunde)}, hier ist der Fahrer von Geflügelverkauf Holle 🐔\nWir sind ${st&&st[0]?"seit "+st[0]+" Uhr ":""}in ${o.ort} und haben deine Tiere dabei (${tierText(o,", ")}). Kommst du noch? Wir fahren bald weiter.`;
+}
+async function nichtDa(id,an){
+  const o=orders.find(x=>x.id===id); if(!o) return;
+  if(an&&!confirm(`${o.kunde} ist nicht gekommen – kein Verkauf?\nDie Tiere gehen zurück in den Bestand.`)) return;
+  const {id:_,...rest}=o, now=new Date().toISOString(), wer=(window.__holle.user&&window.__holle.user.email)||"";
+  const upd={...rest,updated:now};
+  if(an){upd.nichtDa={zeit:now,von:wer,vorher:o.status};upd.status="storniert";upd.bemerkung=[o.bemerkung,"Nicht erschienen "+new Date().toLocaleDateString("de-DE")].filter(Boolean).join(" · ")}
+  else{upd.status=(o.nichtDa&&o.nichtDa.vorher)||"offen";delete upd.nichtDa;upd.bemerkung=String(o.bemerkung||"").replace(/\s*·?\s*Nicht erschienen \d\d\.\d\d\.\d{4}$/,"")}
+  try{await saveOrder(id,upd);toast(an?`${o.kunde}: nicht erschienen`:"Zurückgenommen")}catch(e){toast("Speichern fehlgeschlagen.")}
+}
+// In der Kundenkartei anzeigen, wie oft jemand nicht gekommen ist
+{
+  const _rkd=renderKundeDetail;
+  renderKundeDetail=function(){_rkd();const k=kSel&&kundenListe().find(x=>x.key===kSel);if(!k)return;
+    const n=k.orders.filter(o=>o.nichtDa).length; if(!n) return;
+    const h=$("#k-detail .khead .sub"); if(h&&!h.querySelector(".nd")) h.insertAdjacentHTML("beforeend",` <span class="chip nd" style="background:#fde7e9;color:#b3121f">${n}× nicht erschienen</span>`);};
+}
+
+/* ---------- Standort des Fahrers ---------- */
+var standortWatch=null, standortLetzt=0;
+const ST_KEY="holle-standort-teilen";
+function naechsterHalt(lat,lng){
+  let best=null;
+  for(const [ort,[a,b]] of Object.entries(ORT_KOORD)){const km=kmLuft([lat,lng],[a,b]);if(!best||km<best.km)best={ort,km}}
+  return best;
+}
+function kmLuft(a,b){const r=x=>x*Math.PI/180,dLat=r(b[0]-a[0]),dLng=r(b[1]-a[1]);const h=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLng/2)**2;return 2*6371*Math.asin(Math.sqrt(h))}
+function standortStart(){
+  if(!navigator.geolocation){toast("Dieses Handy kann keinen Standort senden.");return}
+  try{localStorage.setItem(ST_KEY,"1")}catch(e){}
+  standortWatch=navigator.geolocation.watchPosition(async p=>{
+    if(Date.now()-standortLetzt<45000) return; standortLetzt=Date.now();
+    const u=window.__holle.user;
+    await SB.from("fahrer_position").upsert({email:(u.email||"").toLowerCase(),name:u.user_metadata?.name||null,lat:p.coords.latitude,lng:p.coords.longitude,genau:p.coords.accuracy,zeit:new Date().toISOString()},{onConflict:"email"});
+    renderStandort();
+  },e=>{toast(e.code===1?"Standort nicht erlaubt. In den Einstellungen für Safari freigeben.":"Standort gerade nicht verfügbar.");standortStop()},{enableHighAccuracy:true,maximumAge:30000,timeout:30000});
+  renderStandort();
+}
+function standortStop(){if(standortWatch!=null)navigator.geolocation.clearWatch(standortWatch);standortWatch=null;try{localStorage.removeItem(ST_KEY)}catch(e){}renderStandort()}
+async function renderStandort(){
+  const box=$("#fr-standort"); if(!box) return;
+  if(ROLLE==="fahrer"){
+    box.innerHTML=standortWatch!=null
+      ?`<div class="kabschluss done">📍 <b>Standort wird geteilt</b> – Taulant sieht, an welchem Haltepunkt du bist (nur solange diese Seite offen ist). <button class="btn ghost" type="button" id="st-aus">Ausschalten</button></div>`
+      :`<div class="kabschluss">📍 Standort ist aus. <button class="btn" type="button" id="st-an">Standort teilen</button></div>`;
+    const a=$("#st-an"),b=$("#st-aus"); if(a)a.onclick=standortStart; if(b)b.onclick=standortStop; return;
+  }
+  const {data}=await SB.from("fahrer_position").select("*").order("zeit",{ascending:false});
+  const fs=(data||[]).filter(f=>Date.now()-new Date(f.zeit)<36*3600e3);
+  box.innerHTML=fs.length?fs.map(f=>{const n=naechsterHalt(f.lat,f.lng),min=Math.round((Date.now()-new Date(f.zeit))/60000);
+    const wo=n&&n.km<3?`ist in <b>${esc(n.ort)}</b>`:n?`ist ca. ${Math.round(n.km)} km von ${esc(n.ort)} entfernt`:"";
+    return `<div class="kitem"><div class="kl">📍 <b>${esc(f.name||f.email)}</b> ${wo}<div class="sub">${min<1?"gerade eben":min<60?"vor "+min+" Min.":"vor "+Math.round(min/60)+" Std."}${min>10?" · Standort wird gerade nicht gesendet":""}</div></div>
+      <div class="kr"><a class="btn ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lng}">Karte</a></div></div>`}).join("")
+    :`<p class="sub">📍 Kein Fahrer teilt gerade seinen Standort.</p>`;
+}
+if(ROLLE==="fahrer"){try{if(localStorage.getItem(ST_KEY))standortStart()}catch(e){}}
+renderStandort(); setInterval(()=>{if(!document.hidden&&!$("#tab-fahrer").hidden)renderStandort()},30000);

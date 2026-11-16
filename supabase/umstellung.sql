@@ -537,3 +537,18 @@ begin
 end $$;
 revoke all on function fahrer_tage_setzen(text, date[]) from public, anon;
 grant execute on function fahrer_tage_setzen(text, date[]) to authenticated;
+
+-- ---------- Standort des Fahrers (nur solange die Fahrer-Seite offen ist) ----------
+create table if not exists fahrer_position (
+  email text primary key, name text,
+  lat double precision not null, lng double precision not null, genau double precision,
+  zeit timestamptz not null default now());
+alter table fahrer_position enable row level security;
+drop policy if exists staff_read on fahrer_position;
+create policy staff_read on fahrer_position for select to authenticated using (is_staff());
+drop policy if exists staff_delete on fahrer_position;
+create policy staff_delete on fahrer_position for delete to authenticated using (is_staff());
+drop policy if exists eigene on fahrer_position;
+create policy eigene on fahrer_position for all to authenticated
+  using (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')))
+  with check (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and (is_fahrer() or is_staff()));
