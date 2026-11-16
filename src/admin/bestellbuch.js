@@ -1435,12 +1435,20 @@ const ROLLE=window.__holle.rolle||"admin";
 if(ROLLE==="fahrer"){ showTab("fahrer"); }
 async function ladeFahrer(){
   const box=$("#fz-list"); if(!box||ROLLE!=="admin") return;
-  const {data}=await SB.from("staff").select("email,name,role,touren").eq("role","fahrer").order("email");
+  const {data}=await SB.from("staff").select("email,name,role,touren,tage").eq("role","fahrer").order("email");
+  (data||[]).forEach(f=>{if(f.tage)f.tage=f.tage.map(d=>String(d).slice(0,10))});
   const TT=TOURS.filter(t=>t.id!=="R");
   box.innerHTML=(data||[]).map(f=>{const tu=f.touren||[];return `<div class="kitem"><div class="kl"><b>${esc(f.name||"Fahrer")}</b> <span class="sub">${esc(f.email)}</span>
       <div class="fztouren">Sieht: ${TT.map(t=>`<label><input type="checkbox" data-fzt="${esc(f.email)}" value="${t.id}"${tu.includes(t.id)?" checked":""}> ${esc(t.nr)}</label>`).join("")}
-      <span class="sub">${tu.length?"":"(nichts angehakt = alle Touren)"}</span></div></div>
+      <span class="sub">${tu.length?"":"(nichts angehakt = alle Touren)"}</span></div>
+      <div class="fztouren">Tage: ${(f.tage||[]).map(d=>`<span class="chip">${esc(dShort(d))} <button class="linkbtn" type="button" data-fzdx="${esc(f.email)}" data-d="${d}" aria-label="Tag entfernen">×</button></span>`).join("")||'<span class="sub">alle Tage</span>'}
+        <input type="date" data-fzd="${esc(f.email)}" style="width:auto"><button class="btn ghost" type="button" data-fzda="${esc(f.email)}">Tag hinzufügen</button></div></div>
     <div class="kr"><button class="btn warn" type="button" data-fzx="${esc(f.email)}">Zugang löschen</button></div></div>`}).join("")||`<p class="sub">Noch kein Fahrer-Zugang.</p>`;
+  const tageSetzen=async(em,tage)=>{const {error}=await SB.rpc("fahrer_tage_setzen",{p_email:em,p_tage:tage});
+    toast(error?error.message:tage.length?"Sieht nur: "+tage.sort().map(dShort).join(", "):"Sieht jetzt alle Tage"); ladeFahrer();};
+  box.querySelectorAll("[data-fzda]").forEach(b=>b.onclick=()=>{const em=b.dataset.fzda,f=(data||[]).find(x=>x.email===em),v=box.querySelector(`[data-fzd="${CSS.escape(em)}"]`).value;
+    if(!v){toast("Bitte erst ein Datum wählen.");return} tageSetzen(em,[...new Set([...(f.tage||[]),v])])});
+  box.querySelectorAll("[data-fzdx]").forEach(b=>b.onclick=()=>{const em=b.dataset.fzdx,f=(data||[]).find(x=>x.email===em);tageSetzen(em,(f.tage||[]).filter(d=>d!==b.dataset.d))});
   box.querySelectorAll("[data-fzt]").forEach(c=>c.onchange=async()=>{
     const em=c.dataset.fzt, tu=[...box.querySelectorAll(`[data-fzt="${CSS.escape(em)}"]:checked`)].map(x=>x.value);
     const {error}=await SB.rpc("fahrer_touren_setzen",{p_email:em,p_touren:tu});
