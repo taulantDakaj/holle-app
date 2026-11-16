@@ -38,6 +38,11 @@ alter table fahrten enable row level security;
 drop policy if exists staff_all on fahrten;
 create policy staff_all on fahrten for all to authenticated using (is_staff()) with check (is_staff());
 
+-- ---------- Bestand für die Kunden-App (leer = unbegrenzt) ----------
+alter table products add column if not exists bestand int;
+alter table products drop constraint if exists products_bestand_check;
+alter table products add constraint products_bestand_check check (bestand is null or bestand >= 0);
+
 -- ---------- Tiernamen wie im Bestellbuch ----------
 update products set name = 'Masthähnchen 3 Wochen' where name = 'Masthähnchen (3 Wochen)'
   and not exists (select 1 from products where name = 'Masthähnchen 3 Wochen');
@@ -53,7 +58,7 @@ language sql stable security definer set search_path = public as $$
     'products', coalesce((
       select json_agg(json_build_object(
         'id', p.id, 'category', p.category, 'name', p.name,
-        'price', p.price, 'price_hahn', p.price_hahn, 'price_note', p.price_note, 'note', p.note)
+        'price', p.price, 'price_hahn', p.price_hahn, 'price_note', p.price_note, 'note', p.note, 'bestand', p.bestand)
         order by p.sort, p.category, p.name)
       from products p where p.available), '[]'::json),
     'fahrten', coalesce((
@@ -109,9 +114,14 @@ begin
     v_qty := (v_item->>'qty')::int;
     v_hahn := coalesce((v_item->>'hahn')::boolean, false);
     if v_qty is null or v_qty < 1 or v_qty > 1000 then raise exception 'Ungültige Anzahl.'; end if;
-    select * into v_prod from products where id = (v_item->>'product_id')::bigint and available;
+    select * into v_prod from products where id = (v_item->>'product_id')::bigint and available for update;
     if not found then raise exception 'Ein ausgewähltes Tier ist nicht mehr verfügbar.'; end if;
     if v_hahn and v_prod.price_hahn is null then raise exception 'Für % gibt es keine Hähne.', v_prod.name; end if;
+    if v_prod.bestand is not null then
+      if v_qty > v_prod.bestand then
+        raise exception 'Von % sind nur noch % Stück verfügbar.', v_prod.name, v_prod.bestand; end if;
+      update products set bestand = bestand - v_qty where id = v_prod.id;
+    end if;
     v_pos := v_pos || jsonb_build_array(jsonb_build_object(
       'tier', v_prod.name || case when v_hahn then ' Hahn' else '' end,
       'anzahl', v_qty,

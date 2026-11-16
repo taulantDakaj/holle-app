@@ -65,7 +65,14 @@ export default function Shop() {
   const total = chosen.reduce((s, c) => s + c.n, 0);
   const catCount = (items) => items.reduce((s, p) => s + (qty[p.id] || 0) + (qty[p.id + 'h'] || 0), 0);
 
-  const setQ = (id, v) => setQty((q) => ({ ...q, [id]: Math.max(0, Math.min(999, v || 0)) }));
+  const setQ = (id, v, p) => setQty((q) => {
+    let n = Math.max(0, Math.min(999, v || 0));
+    if (p && p.bestand != null) {
+      const other = String(id).endsWith('h') ? (q[p.id] || 0) : (q[p.id + 'h'] || 0);
+      n = Math.min(n, Math.max(0, p.bestand - other));
+    }
+    return { ...q, [id]: n };
+  });
   const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function submit(e) {
@@ -138,16 +145,18 @@ export default function Shop() {
                     <div className="pinfo">
                       <div className="pname">{p.name}</div>
                       {p.note && <div className="pmeta">{p.note}</div>}
+                      {p.bestand === 0 ? <div className="pstock out">ausverkauft</div>
+                        : p.bestand != null && p.bestand <= 20 ? <div className="pstock">nur noch {p.bestand} verfügbar</div> : null}
                     </div>
-                    <div className="variants">
+                    {p.bestand !== 0 && <div className="variants">
                       <Variant label={p.price_hahn ? 'Henne' : ''}
                         price={p.price ? fmtPrice(p.price) : p.price_note || 'auf Anfrage'}
-                        value={qty[p.id]} onChange={(v) => setQ(p.id, v)} />
+                        value={qty[p.id]} onChange={(v) => setQ(p.id, v, p)} />
                       {p.price_hahn && (
                         <Variant label="Hahn" price={fmtPrice(p.price_hahn)}
-                          value={qty[p.id + 'h']} onChange={(v) => setQ(p.id + 'h', v)} />
+                          value={qty[p.id + 'h']} onChange={(v) => setQ(p.id + 'h', v, p)} />
                       )}
-                    </div>
+                    </div>}
                   </div>
                 ))}
               </details>

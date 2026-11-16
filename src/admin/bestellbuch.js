@@ -166,7 +166,7 @@ $("#form").addEventListener("submit",async e=>{
 
 /* ---------- Tabs ---------- */
 function showTab(id){document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id));
-  ["neu","liste","kunden","kasse","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
+  ["neu","liste","kunden","kasse","erinnern","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------- Filter / Auswahl ---------- */
@@ -643,7 +643,7 @@ function renderAll(){
   { const sel=$("#l-datum"),cur=sel.value,ds=[...new Set(orders.filter(o=>istAlt(o)===listArchiv).map(o=>o.datum).filter(Boolean))].sort();
     if(listArchiv) ds.reverse();
     sel.innerHTML=`<option value="">Alle Termine</option>`+ds.map(d=>`<option value="${d}">${esc(dLong(d))}</option>`).join(""); sel.value=ds.includes(cur)?cur:""; }dateOptions($("#p-datum"),false);
-  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderKasse();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
+  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderKasse();renderErinnern();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
 }
 resetForm();renderAll();
 try{const t=localStorage.getItem("holle-tab");if(t)showTab(t)}catch(e){}
@@ -738,18 +738,20 @@ function renderProducts(){
   const tb=$("#pr-table"); if(!tb) return;
   $("#dl-kat").innerHTML=[...new Set(products.map(p=>p.category))].map(k=>`<option value="${esc(k)}">`).join("");
   let last=null;
-  tb.innerHTML=`<thead><tr><th>In App</th><th>Tierart</th><th class="num">Preis €</th><th class="num">Hahn €</th><th>Hinweis</th></tr></thead><tbody>`+
+  tb.innerHTML=`<thead><tr><th>In App</th><th>Tierart</th><th class="num">Preis €</th><th class="num">Hahn €</th><th class="num">Bestand</th><th>Hinweis</th></tr></thead><tbody>`+
     products.map(p=>{const head=p.category!==last?(last=p.category):null;
-      return (head?`<tr class="tot"><td colspan="5">${esc(head)}</td></tr>`:"")+
+      return (head?`<tr class="tot"><td colspan="6">${esc(head)}</td></tr>`:"")+
       `<tr><td><input type="checkbox" data-pid="${p.id}" data-f="available" ${p.available?"checked":""} style="width:22px;height:22px"></td>
        <td>${esc(p.name)}</td>
        <td class="num"><input data-pid="${p.id}" data-f="price" value="${p.price??""}" inputmode="decimal" style="width:80px;text-align:right"></td>
        <td class="num"><input data-pid="${p.id}" data-f="price_hahn" value="${p.price_hahn??""}" inputmode="decimal" style="width:80px;text-align:right"></td>
+       <td class="num"><input data-pid="${p.id}" data-f="bestand" value="${p.bestand??""}" inputmode="numeric" placeholder="∞" style="width:70px;text-align:right${p.bestand===0?";color:var(--warn);font-weight:700":""}"></td>
        <td><input data-pid="${p.id}" data-f="price_note" value="${esc(p.price_note??"")}" placeholder="z. B. je nach Alter"></td></tr>`}).join("")+`</tbody>`;
   tb.querySelectorAll("input[data-pid]").forEach(i=>i.addEventListener("change",()=>{
     const f=i.dataset.f;let v;
     if(f==="available") v=i.checked;
     else if(f==="price_note") v=i.value.trim()||null;
+    else if(f==="bestand"){const t=i.value.trim(); v=t===""?null:parseInt(t,10); if(v!==null&&(isNaN(v)||v<0)){toast("Bitte eine ganze Zahl eingeben.");return}}
     else {v=num(i.value); if(v===undefined){toast("Bitte eine Zahl eingeben.");return}}
     patchProduct(+i.dataset.pid,{[f]:v});
   }));
@@ -1087,3 +1089,44 @@ $("#ka-csv").onclick=()=>{
 };
 ["#ka-datum","#ka-ort"].forEach(s=>$(s).addEventListener("change",renderKasse));
 $("#ka-monat").addEventListener("change",renderBerichte);
+
+/* ---------- Erinnerungen vor der Tour ---------- */
+function erOffen(o){return (o.status==="offen"||o.status==="neu")&&!o.zahlung}
+function erinnerungText(o){
+  const vn=(o.kunde||"").split(" ")[0];
+  const morgen=iso(new Date(Date.now()+864e5))===o.datum, heute=iso(new Date())===o.datum;
+  const pos=(o.positionen||[]).filter(p=>p.tier&&+p.anzahl), summe=betrag(o);
+  return `Hallo ${vn}, kleine Erinnerung von Geflügelverkauf Holle 🐔\n`+
+    `${heute?"Heute ist es so weit":morgen?"Morgen ist es so weit":"Bald ist es so weit"} – Abholung: ${abholText(o)}\n\n`+
+    `Deine Bestellung:\n`+pos.map(p=>`• ${p.anzahl} × ${p.tier}`).join("\n")+
+    (summe?`\nGesamt: ${eur(summe)}`:"")+
+    `\n\nBezahlung vor Ort bar, PayPal oder Überweisung. Falls du nicht kommen kannst, gib bitte kurz Bescheid.\nBis dann!`;
+}
+function renderErinnern(){
+  const dSel=$("#er-datum"); if(!dSel) return;
+  const h=iso(new Date());
+  const tage=[...new Set(orders.filter(o=>erOffen(o)&&o.datum>=h).map(o=>o.datum))].sort().slice(0,12);
+  const cur=dSel.value&&tage.includes(dSel.value)?dSel.value:tage[0]||"";
+  dSel.innerHTML=tage.length?tage.map(d=>{const n=orders.filter(o=>o.datum===d&&erOffen(o)).length;return `<option value="${d}"${d===cur?" selected":""}>${esc(dShort(d))} · ${n} Kunden</option>`}).join(""):`<option value="">Keine offenen Abholungen</option>`;
+  const alle=orders.filter(o=>o.datum===cur&&erOffen(o));
+  const oSel=$("#er-ort"), orte=[...new Set(alle.map(o=>o.ort))].sort((a,b)=>a.localeCompare(b,"de")), oc=oSel.value;
+  oSel.innerHTML=`<option value="">Alle (${alle.length})</option>`+orte.map(o=>`<option${o===oc?" selected":""}>${esc(o)}</option>`).join("");
+  const halteZeit=o=>{const t=tourById(o.tour),st=t?t.stops.find(s=>s[1]===o.ort):null;return st?st[0]||"":""};
+  const os=alle.filter(o=>!oSel.value||o.ort===oSel.value).sort((a,b)=>(a.erinnert?1:0)-(b.erinnert?1:0)||halteZeit(a).localeCompare(halteZeit(b))||a.kunde.localeCompare(b.kunde,"de"));
+  const done=alle.filter(o=>o.erinnert).length;
+  $("#er-info").textContent=cur?`${done} von ${alle.length} Kunden erinnert.`:"";
+  $("#er-list").innerHTML=os.map(o=>{
+    const nr=waNum(o.telefon), z=halteZeit(o);
+    return `<div class="kitem${o.erinnert?" bezahlt":""}">
+      <div class="kl"><span class="odot" style="background:${ortFarbe(o.ort)}"></span><b>${esc(o.kunde)}</b> <span class="sub">${esc(z?z+" · ":"")}${esc(o.ort)}</span>
+        <div class="sub">${esc(tierText(o,", "))}${betrag(o)?" · "+esc(eur(betrag(o))):""}</div></div>
+      <div class="kr">${!nr||nr.length<8?`<span class="sub">keine Handynummer</span>`:
+        `<a class="btn ${o.erinnert?"ghost":"wa"}" target="_blank" rel="noopener" data-er="${esc(o.id)}" href="https://wa.me/${esc(nr)}?text=${encodeURIComponent(erinnerungText(o))}">${o.erinnert?"✓ Nochmal":"Erinnern"}</a>`}</div>
+    </div>`}).join("")||(cur?`<p class="empty">Keine Kunden.</p>`:"");
+  $("#er-list").querySelectorAll("[data-er]").forEach(a=>a.addEventListener("click",async()=>{
+    const o=orders.find(x=>x.id===a.dataset.er); if(!o||o.erinnert) return;
+    const {id:_,...rest}=o;
+    try{await saveOrder(o.id,{...rest,erinnert:new Date().toISOString()})}catch(e){}
+  }));
+}
+["#er-datum","#er-ort"].forEach(s=>$(s).addEventListener("change",renderErinnern));

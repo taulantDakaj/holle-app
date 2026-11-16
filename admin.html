@@ -52,6 +52,7 @@
     <button role="tab" data-tab="liste" aria-selected="false">Bestellungen <span class="n" id="cnt">0</span></button>
     <button role="tab" data-tab="kunden" aria-selected="false">Kunden</button>
     <button role="tab" data-tab="kasse" aria-selected="false">Kasse</button>
+    <button role="tab" data-tab="erinnern" aria-selected="false">Erinnern</button>
     <button role="tab" data-tab="bedarf" aria-selected="false">Tierbedarf</button>
     <button role="tab" data-tab="bestell" aria-selected="false">Bestellliste</button>
     <button role="tab" data-tab="lade" aria-selected="false">Ladeliste</button>
@@ -151,6 +152,17 @@
     <p class="hint">Hilfe für deinen Kassenbericht (offene Ladenkasse): Die App zeigt, was laut Bestellungen bar, per PayPal und per Überweisung kassiert wurde. Den gezählten Kassenbestand, Ausgaben und Belege trägst du wie gewohnt in deinen Kassenbericht ein.</p>
   </section>
 
+  <!-- ERINNERN -->
+  <section id="tab-erinnern" class="panel" hidden>
+    <div class="filters">
+      <label>Abholtag<select id="er-datum"></select></label>
+      <label>Haltepunkt<select id="er-ort"><option value="">Alle</option></select></label>
+    </div>
+    <p class="hint" id="er-info"></p>
+    <div id="er-list"></div>
+    <p class="hint">Tipp auf „Erinnern“: WhatsApp öffnet sich mit fertigem Text, du musst nur noch auf Senden tippen. Danach zurück in die App und den nächsten Kunden antippen.</p>
+  </section>
+
   <!-- BEDARF -->
   <section id="tab-bedarf" class="panel" hidden>
     <div class="filters">
@@ -244,7 +256,7 @@
     <div class="tablewrap" style="margin-top:12px"><table class="list" id="fa-table"></table></div>
 
     <div class="section-h">Sortiment und Preise</div>
-    <p class="hint" style="margin-top:0">Was Kunden in der App sehen. Preise gelten auch als Vorschlag beim Bestellung aufnehmen. Preis leer = „auf Anfrage“. Hahn-Preis leer = keine Hähne bestellbar.</p>
+    <p class="hint" style="margin-top:0">Was Kunden in der App sehen. Preise gelten auch als Vorschlag beim Bestellung aufnehmen. Preis leer = „auf Anfrage“. Hahn-Preis leer = keine Hähne bestellbar. Bestand: wie viele Kunden in der App noch bestellen können (leer = unbegrenzt, 0 = ausverkauft). Kunden-Bestellungen ziehen den Bestand automatisch ab.</p>
     <div class="tablewrap"><table class="list" id="pr-table"></table></div>
     <div class="grid" style="margin-top:10px">
       <label>Kategorie<input id="pr-kat" list="dl-kat" placeholder="z. B. Rassehühner"></label>

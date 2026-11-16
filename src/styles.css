@@ -229,3 +229,6 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 .plzhit .pn { font-weight: 700; }
 .plzhit .pn em { font-style: normal; color: var(--red); }
 .plzhit .pm { font-size: .82rem; color: var(--muted); }
+
+.pstock { font-size: .78rem; font-weight: 700; color: #b26a00; }
+.pstock.out { color: #b3261e; }
