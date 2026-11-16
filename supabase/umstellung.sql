@@ -42,6 +42,8 @@ create policy staff_all on fahrten for all to authenticated using (is_staff()) w
 alter table products add column if not exists bestand int;
 alter table products drop constraint if exists products_bestand_check;
 alter table products add constraint products_bestand_check check (bestand is null or bestand >= 0);
+alter table products add column if not exists bild_url text;
+alter table products add column if not exists beschreibung text;
 
 -- ---------- Tiernamen wie im Bestellbuch ----------
 update products set name = 'Masthähnchen 3 Wochen' where name = 'Masthähnchen (3 Wochen)'
@@ -58,7 +60,7 @@ language sql stable security definer set search_path = public as $$
     'products', coalesce((
       select json_agg(json_build_object(
         'id', p.id, 'category', p.category, 'name', p.name,
-        'price', p.price, 'price_hahn', p.price_hahn, 'price_note', p.price_note, 'note', p.note, 'bestand', p.bestand)
+        'price', p.price, 'price_hahn', p.price_hahn, 'price_note', p.price_note, 'note', p.note, 'bestand', p.bestand, 'bild_url', p.bild_url, 'beschreibung', p.beschreibung)
         order by p.sort, p.category, p.name)
       from products p where p.available), '[]'::json),
     'fahrten', coalesce((

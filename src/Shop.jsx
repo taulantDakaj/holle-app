@@ -65,6 +65,7 @@ export default function Shop() {
   const total = chosen.reduce((s, c) => s + c.n, 0);
   const catCount = (items) => items.reduce((s, p) => s + (qty[p.id] || 0) + (qty[p.id + 'h'] || 0), 0);
 
+  const [zoom, setZoom] = useState(null);
   const setQ = (id, v, p) => setQty((q) => {
     let n = Math.max(0, Math.min(999, v || 0));
     if (p && p.bestand != null) {
@@ -143,8 +144,10 @@ export default function Shop() {
                 </summary>
                 {items.map((p) => (
                   <div className="prod" key={p.id}>
-                    <div className="pinfo">
+                    <div className={'pinfo' + (p.bild_url ? ' mitbild' : '')}>
+                      {p.bild_url && <button type="button" className="pbild" onClick={() => setZoom(p)} aria-label={`Bild von ${p.name} ansehen`}><img src={p.bild_url} alt={p.name} loading="lazy" /></button>}
                       <div className="pname">{p.name}</div>
+                      {p.beschreibung && <button type="button" className="pmehr" onClick={() => setZoom(p)}>Mehr zur Rasse</button>}
                       {p.note && <div className="pmeta">{p.note}</div>}
                       {p.bestand === 0 ? <div className="pstock out">ausverkauft</div>
                         : p.bestand != null && p.bestand <= 20 ? <div className="pstock">nur noch {p.bestand} verfügbar</div> : null}
@@ -235,6 +238,16 @@ export default function Shop() {
             </button>
           </div>
         </form>
+      )}
+      {zoom && (
+        <div className="zoom" onClick={() => setZoom(null)} role="dialog" aria-label={zoom.name}>
+          <div className="zoombox" onClick={(e) => e.stopPropagation()}>
+            {zoom.bild_url && <img src={zoom.bild_url} alt={zoom.name} />}
+            <h3>{zoom.name}</h3>
+            {zoom.beschreibung && <p>{zoom.beschreibung}</p>}
+            <button type="button" className="btn ghost" onClick={() => setZoom(null)}>Schließen</button>
+          </div>
+        </div>
       )}
     </Page>
   );
