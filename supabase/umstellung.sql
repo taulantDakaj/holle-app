@@ -236,3 +236,10 @@ begin
 end $$;
 revoke all on function push_test() from public, anon;
 grant execute on function push_test() to authenticated;
+
+-- ---------- Rechte aufräumen (nur Kunden-Funktionen öffentlich) ----------
+revoke all on function public.bb_neu_benachrichtigen() from public, anon, authenticated;
+revoke all on function public.push_senden(text, text) from public, anon, authenticated;
+revoke execute on function public.is_staff() from public, anon;
+grant execute on function public.is_staff() to authenticated;
+revoke execute on function public.push_test() from public, anon;
