@@ -23,7 +23,7 @@ const outbox = () => LS.get(OUTBOX, []);
 
 function offlineBanner() {
   let b = document.getElementById('offline-banner');
-  if (!b) { b = document.createElement('div'); b.id = 'offline-banner'; document.body.appendChild(b); }
+  if (!b) { b = document.createElement('div'); b.id = 'offline-banner'; b.hidden = true; document.body.appendChild(b); }
   const n = outbox().length;
   if (!navigator.onLine || n) {
     b.hidden = false;
