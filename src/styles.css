@@ -256,3 +256,14 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 .zoombox img { width: 100%; border-radius: 12px; display: block; }
 .zoombox h3 { margin: .7rem 0 .3rem; }
 .zoombox p { white-space: pre-line; margin: 0 0 .8rem; }
+
+.stk { margin: 1rem 0; padding: 1rem; border-radius: 14px; background: linear-gradient(160deg, #8e0e1a, #4a060c); color: #fff; }
+.stk-kopf { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .7rem; }
+.stk-kopf span { opacity: .85; font-size: .9rem; }
+.stk-felder { display: grid; grid-template-columns: repeat(5, 1fr); gap: .45rem; }
+.stk-feld { aspect-ratio: 1; border-radius: 50%; border: 2px dashed rgba(255,255,255,.5); display: grid; place-items: center; font-size: 1.35rem; }
+.stk-feld.an { background: #fff; border: 2px solid #fff; }
+.stk-feld.gratis { font-size: .6rem; font-weight: 800; letter-spacing: .03em; border-color: #ffd54f; color: #ffd54f; }
+.stk-feld.gratis.an { color: inherit; font-size: 1.35rem; background: #ffd54f; border-color: #ffd54f; }
+.stk-text { margin: .8rem 0 .2rem; }
+.stk .hint { color: rgba(255,255,255,.75); margin: 0; }

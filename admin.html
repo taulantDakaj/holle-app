@@ -164,6 +164,7 @@
       <button type="button" data-seg="warte" aria-pressed="false">Warteliste <span class="n" id="wl-n" hidden>0</span></button>
       <button type="button" data-seg="rund" aria-pressed="false">Rundnachricht</button>
       <button type="button" data-seg="bewert" aria-pressed="false">Google-Bewertung <span class="n" id="bw-n" hidden>0</span></button>
+      <button type="button" data-seg="insta" aria-pressed="false">Instagram-Post</button>
     </div>
     <div id="seg-tour">
     <div class="filters">
@@ -189,6 +190,23 @@
       <p class="hint" id="rn-info"></p>
       <div id="rn-list"></div>
       <p class="hint">Bitte nur Kunden anschreiben, die schon bei dir gekauft haben oder Nachrichten von dir wollen. Wer „Stopp“ schreibt, im Kunden-Detail auf „Keine Rundnachrichten“ setzen.</p>
+    </div>
+    <div id="seg-insta" hidden>
+      <div class="filters">
+        <label>Termin<select id="ig-datum"></select></label>
+        <label>Format<select id="ig-format"><option value="post">Post (4:5)</option><option value="story">Story (9:16)</option></select></label>
+      </div>
+      <div class="grid">
+        <label>Überschrift (*Wort* = hellrot)<input id="ig-titel"></label>
+        <label>Unterzeile<input id="ig-sub" value="Jetzt vorbestellen – Link in Bio"></label>
+      </div>
+      <div class="actions" style="margin:8px 0">
+        <label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">📷 Hintergrundfoto<input type="file" id="ig-foto" accept="image/*" hidden></label>
+        <button class="btn ghost" type="button" id="ig-foto-weg" hidden>Foto entfernen</button>
+      </div>
+      <canvas id="ig-canvas" style="width:100%;max-width:420px;border-radius:12px;display:block;box-shadow:0 4px 18px rgba(0,0,0,.2)"></canvas>
+      <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="ig-share">Bild teilen / speichern</button><button class="btn ghost" type="button" id="ig-copy">Text kopieren</button></div>
+      <label class="full" style="margin-top:8px">Text für den Post<textarea id="ig-caption" rows="8"></textarea></label>
     </div>
     <div id="seg-bewert" hidden>
       <p class="hint" style="margin-top:0">Kunden, deren Abholung mindestens 7 Tage her ist (bis 90 Tage). Nichts geht automatisch raus: Du entscheidest pro Kunde mit „Anfragen“ oder „Nicht fragen“. Jeder Kunde wird nur einmal gefragt.</p>

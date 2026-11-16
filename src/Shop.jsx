@@ -403,10 +403,32 @@ export function MeineBestellung({ id }) {
             </div>
           )}
           {!o.stornierbar && (o.status === 'neu' || o.status === 'offen') && <p className="hint">Am Abholtag bitte kurz anrufen ({SHOP_PHONE}) oder per WhatsApp absagen.</p>}
+          {o.stempelkarte && <Stempelkarte k={o.stempelkarte} />}
           <a className="btn wa" href={`https://wa.me/${SHOP_WA}?text=${encodeURIComponent(`Hallo, Frage zu meiner Bestellung ${o.nr}: `)}`}>Frage per WhatsApp</a>
           <a className="btn ghost" href="./">Neue Bestellung</a>
         </div>
       )}
     </Page>
+  );
+}
+
+function Stempelkarte({ k }) {
+  const voll = k.frei > 0;
+  const an = voll && k.rest === 0 ? 10 : k.rest;
+  return (
+    <div className="stk">
+      <div className="stk-kopf"><b>Deine Holle-Stempelkarte</b><span>{k.stempel} Stempel</span></div>
+      <div className="stk-felder">
+        {Array.from({ length: 10 }, (_, i) => (
+          <span key={i} className={'stk-feld' + (i < an ? ' an' : '') + (i === 9 ? ' gratis' : '')}>{i < an ? '🐔' : i === 9 ? 'GRATIS' : ''}</span>
+        ))}
+      </div>
+      <p className="stk-text">
+        {voll
+          ? <>🎉 <b>Du hast {k.frei > 1 ? `${k.frei} Gratis-Hühner` : 'ein Gratis-Huhn'} gut!</b> Sag bei der nächsten Abholung einfach Bescheid.</>
+          : <>Noch <b>{10 - k.rest}</b> {10 - k.rest === 1 ? 'Stempel' : 'Stempel'} bis zu deinem Gratis-Huhn (bis 30 €).</>}
+      </p>
+      <p className="hint">1 Rassehenne = 1 Stempel · 2 Hybridhennen = 1 Stempel. Gezählt wird bei Abholung.</p>
+    </div>
   );
 }

@@ -1207,7 +1207,7 @@ $("#fi-save").onclick=async()=>{
 
 /* ---------- Nachrichten: Bereiche ---------- */
 var nachSeg="tour";
-function setSeg(s){nachSeg=s;["tour","warte","rund","bewert"].forEach(x=>{$("#seg-"+x).hidden=x!==s});
+function setSeg(s){nachSeg=s;["tour","warte","rund","bewert","insta"].forEach(x=>{$("#seg-"+x).hidden=x!==s});if(s==="insta")igStart();
   document.querySelectorAll("#nach-seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.seg===s));
   if(s==="warte") ladeWarteliste(); renderNachrichten();}
 document.querySelectorAll("#nach-seg button").forEach(b=>b.onclick=()=>setSeg(b.dataset.seg));
@@ -1766,3 +1766,130 @@ if(ROLLE==="admin"){
     }catch(e){toast("Einspielen fehlgeschlagen: "+(e.message||e))}
   });
 }else{document.querySelectorAll("#bk-jetzt,#bk-dl,#bk-file").forEach(e=>e.disabled=true)}
+
+/* ---------- Instagram-Post zur Tour ---------- */
+var igFahrten=null, igFoto=null, igGeladen=false;
+const IG_ROT="#ff8a80", WT=["So","Mo","Di","Mi","Do","Fr","Sa"], WT_LANG=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+async function igStart(){
+  if(!igGeladen){
+    igGeladen=true;
+    try{await Promise.all(["800 80px Outfit","600 40px Outfit","400 30px Outfit"].map(f=>document.fonts.load(f)))}catch(e){}
+    const h=iso(new Date()), bis=iso(new Date(Date.now()+75*864e5));
+    const {data}=await SB.from("fahrten").select("datum,tour,nur_orte,hinweis,aktiv").gte("datum",h).lte("datum",bis).eq("aktiv",true).order("datum");
+    igFahrten=data||[];
+    const tage=[...new Set(igFahrten.map(f=>f.datum))];
+    $("#ig-datum").innerHTML=tage.map(d=>`<option value="${d}">${esc(dShort(d))} · ${igFahrten.filter(f=>f.datum===d).map(f=>tourById(f.tour)?.nr||f.tour).join(", ")}</option>`).join("")||`<option value="">Keine Termine</option>`;
+    $("#ig-titel").value=igTitel();
+    ["#ig-datum"].forEach(s=>$(s).addEventListener("change",()=>{$("#ig-titel").value=igTitel();igMalen()}));
+    ["#ig-format","#ig-titel","#ig-sub"].forEach(s=>$(s).addEventListener("input",igMalen));
+    $("#ig-foto").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+      const url=URL.createObjectURL(f);igFoto=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=url});$("#ig-foto-weg").hidden=!igFoto;igMalen()});
+    $("#ig-foto-weg").onclick=()=>{igFoto=null;$("#ig-foto-weg").hidden=true;igMalen()};
+    $("#ig-share").onclick=igTeilen;
+    $("#ig-copy").onclick=async()=>{try{await navigator.clipboard.writeText($("#ig-caption").value);toast("Text kopiert")}catch(e){$("#ig-caption").select();toast("Text markiert – jetzt kopieren")}};
+  }
+  igMalen();
+}
+function igTitel(){
+  const d=$("#ig-datum").value; if(!d) return "";
+  const dt=new Date(d+"T12:00"), tage=Math.round((dt-new Date(iso(new Date())+"T12:00"))/864e5);
+  const wt=WT_LANG[dt.getDay()], dm=dt.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
+  return tage>=0&&tage<7?`Diesen *${wt}* kommen wir zu dir!`:`Hühner-Tour am *${wt}, ${dm}*`;
+}
+function igTouren(){
+  const d=$("#ig-datum").value;
+  return (igFahrten||[]).filter(f=>f.datum===d).map(f=>{const t=tourById(f.tour); if(!t) return null;
+    const stops=t.stops.filter(s=>s[1]!==HOME&&(!f.nur_orte||!f.nur_orte.length||f.nur_orte.includes(s[1])));
+    return {nr:t.nr,name:t.name,stops,hinweis:f.hinweis||""}}).filter(Boolean);
+}
+function igText(ctx,text,x,y,maxW){ // *Wort* in Hellrot
+  const teile=text.split(/(\*[^*]+\*)/).filter(Boolean).map(t=>t.startsWith("*")?{t:t.slice(1,-1),rot:true}:{t,rot:false});
+  const woerter=[]; teile.forEach(p=>p.t.split(/(\s+)/).filter(w=>w!=="").forEach(w=>woerter.push({w,rot:p.rot})));
+  const zeilen=[[]]; let breite=0;
+  woerter.forEach(w=>{const b=ctx.measureText(w.w).width; if(breite+b>maxW&&zeilen[zeilen.length-1].length&&w.w.trim()){zeilen.push([]);breite=0} if(!w.w.trim()&&!zeilen[zeilen.length-1].length)return; zeilen[zeilen.length-1].push(w);breite+=b});
+  const lh=parseInt(ctx.font.match(/(\d+)px/)[1])*1.12;
+  zeilen.forEach((z,i)=>{let xx=x;z.forEach(w=>{ctx.fillStyle=w.rot?IG_ROT:"#fff";ctx.fillText(w.w,xx,y+i*lh);xx+=ctx.measureText(w.w).width})});
+  return y+zeilen.length*lh;
+}
+function igMalen(){
+  const c=$("#ig-canvas"); if(!c) return;
+  const story=$("#ig-format").value==="story", W=1080, H=story?1920:1350, P=72;
+  c.width=W; c.height=H; const g=c.getContext("2d");
+  // Hintergrund
+  if(igFoto){const s=Math.max(W/igFoto.width,H/igFoto.height),w=igFoto.width*s,h=igFoto.height*s;g.drawImage(igFoto,(W-w)/2,(H-h)/2,w,h)}
+  else{const bg=g.createLinearGradient(0,0,W,H);bg.addColorStop(0,"#3b0a0f");bg.addColorStop(1,"#120304");g.fillStyle=bg;g.fillRect(0,0,W,H)}
+  // Kopfblock oben
+  g.textBaseline="top";
+  g.font="800 86px Outfit, sans-serif";
+  const titel=$("#ig-titel").value||"", sub=$("#ig-sub").value||"";
+  const kopfY=story?150:70;
+  const mess=document.createElement("canvas").getContext("2d"); mess.font=g.font;
+  const zeilen=Math.max(1,Math.ceil(mess.measureText(titel.replace(/\*/g,"")).width/(W-P*2-150)));
+  const kopfH=kopfY+70+zeilen*96+30+(sub?60:0)+60;
+  const kg=g.createLinearGradient(0,0,0,kopfH); kg.addColorStop(0,"rgba(110,8,16,.97)"); kg.addColorStop(1,"rgba(60,4,9,.90)");
+  g.fillStyle=kg; g.fillRect(0,0,W,kopfH);
+  g.font="600 30px Outfit, sans-serif"; g.fillStyle=IG_ROT; g.fillText("TOURTERMINE",P,kopfY);
+  g.font="800 86px Outfit, sans-serif"; let y=igText(g,titel,P,kopfY+52,W-P*2-150);
+  g.fillStyle="#e53935"; g.fillRect(P,y+14,160,10); y+=46;
+  if(sub){g.font="400 40px Outfit, sans-serif";g.fillStyle="rgba(255,255,255,.92)";g.fillText(sub,P,y)}
+  // Logo-Abzeichen
+  const lg=$("#ig-canvas")._logo;
+  if(lg){const r=62,cx=W-P-r+10,cy=kopfY+r-4;g.save();g.beginPath();g.arc(cx,cy,r+6,0,Math.PI*2);g.fillStyle="#fff";g.fill();g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);g.clip();g.drawImage(lg,cx-r,cy-r,r*2,r*2);g.restore()}
+  else{const i=new Image();i.onload=()=>{c._logo=i;igMalen()};i.src="./logo.png"}
+  // Haltepunkte: erst Zeilen sammeln, dann auf 1 oder 2 Spalten verteilen
+  const touren=igTouren(), items=[];
+  touren.forEach((t,ti)=>{items.push({art:"kopf",t:`${t.nr} · ${t.name}`.toUpperCase(),h:1.2,tour:ti});
+    t.stops.forEach(st=>items.push({art:"halt",zeit:st[0]||"",ort:st[1],h:1,tour:ti}));
+    if(t.hinweis) items.push({art:"hinweis",t:t.hinweis,h:1,tour:ti});
+    items.push({art:"luecke",h:.35,tour:ti});});
+  while(items.length&&items[items.length-1].art==="luecke") items.pop();
+  const fussH=110, platzY=kopfH+40, platzH=H-platzY-fussH-30-48;
+  const summe=items.reduce((a,x)=>a+x.h,0);
+  let spalten=[items];
+  if(summe*52>platzH&&items.length>3){
+    // Trennstelle nahe der Mitte, bevorzugt an einem Tour-Anfang
+    let acc=0,best=1,bestWert=1e9;
+    for(let k=1;k<items.length;k++){acc+=items[k-1].h;const w=Math.abs(acc-summe/2)-(items[k].art==="kopf"?1.5:0);if(w<bestWert&&items[k].art!=="luecke"){bestWert=w;best=k}}
+    spalten=[items.slice(0,best),items.slice(best).filter((x,k)=>!(k===0&&x.art==="luecke"))];
+  }
+  const maxU=Math.max(...spalten.map(sp=>sp.reduce((a,x)=>a+x.h,0)),1);
+  const zh=Math.min(66,platzH/maxU), fs=Math.round(zh*.62);
+  const panelH=maxU*zh+48, panelY=H-fussH-30-panelH;
+  g.fillStyle="rgba(10,3,4,.72)"; rundRect(g,P-24,panelY,W-2*(P-24),panelH,28); g.fill();
+  const sb=(W-2*P)/spalten.length;
+  g.textBaseline="top";
+  spalten.forEach((sp,si)=>{let yy=panelY+24; const x=P+si*sb, maxB=sb-(spalten.length>1?24:0);
+    sp.forEach(it=>{
+      if(it.art==="kopf"){g.font=`700 ${Math.round(fs*.85)}px Outfit, sans-serif`;g.fillStyle=IG_ROT;passend(g,it.t,x,yy,maxB)}
+      else if(it.art==="halt"){g.font=`700 ${fs}px Outfit, sans-serif`;g.fillStyle="#fff";g.fillText(it.zeit,x,yy);
+        const zx=it.zeit?fs*3.25:0;g.font=`400 ${fs}px Outfit, sans-serif`;passend(g,it.ort,x+zx,yy,maxB-zx)}
+      else if(it.art==="hinweis"){g.font=`400 ${Math.round(fs*.78)}px Outfit, sans-serif`;g.fillStyle="rgba(255,255,255,.75)";passend(g,it.t,x,yy,maxB)}
+      yy+=it.h*zh;});});
+  if(!touren.length){g.font="400 40px Outfit, sans-serif";g.fillStyle="#fff";g.fillText("Kein Termin gewählt",P,panelY+30)}
+  // Fußzeile
+  g.fillStyle="rgba(0,0,0,.55)"; g.fillRect(0,H-fussH,W,fussH);
+  g.font="600 34px Outfit, sans-serif"; g.fillStyle="#fff"; g.textBaseline="middle"; g.fillText("Geflügelverkauf Holle · @gefluegelholle",P,H-fussH/2);
+  igCaption(touren);
+}
+function passend(g,text,x,y,maxB){ // Text bei Bedarf schmaler schreiben, damit er in die Spalte passt
+  const b=g.measureText(text).width; if(b<=maxB){g.fillText(text,x,y);return}
+  g.save();g.translate(x,y);g.scale(maxB/b,1);g.fillText(text,0,0);g.restore();
+}
+function rundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+function igCaption(touren){
+  const d=$("#ig-datum").value; if(!d){$("#ig-caption").value="";return}
+  const dt=new Date(d+"T12:00");
+  const orte=[...new Set(touren.flatMap(t=>t.stops.map(s=>s[1])))];
+  const tags=orte.map(o=>"#"+o.replace(/\(.*?\)/g,"").replace(/[^A-Za-zÄÖÜäöüß]/g,"").toLowerCase()).filter(t=>t.length>2);
+  $("#ig-caption").value=`🐔 ${$("#ig-titel").value.replace(/\*/g,"")}\n\n`+
+    touren.map(t=>`📍 ${t.nr} · ${t.name} – ${WT[dt.getDay()]}, ${dt.toLocaleDateString("de-DE")}\n`+t.stops.map(s=>`${s[0]?s[0]+" ":""}${s[1]}`).join("\n")+(t.hinweis?`\n${t.hinweis}`:"")).join("\n\n")+
+    `\n\nJunghennen, Rassehühner, Enten und mehr – jetzt bequem vorbestellen: ${appBase()}\nBezahlt wird bei Abholung.\n\n`+
+    ["#hühner","#junghennen","#legehennen","#hühnerhaltung","#rassehühner","#gefluegelholle",...tags].slice(0,20).join(" ");
+}
+async function igTeilen(){
+  const c=$("#ig-canvas"); const blob=await new Promise(r=>c.toBlob(r,"image/png"));
+  const f=new File([blob],`Holle-Tour-${$("#ig-datum").value||"post"}.png`,{type:"image/png"});
+  try{await navigator.clipboard.writeText($("#ig-caption").value)}catch(e){}
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]});toast("Text ist kopiert – im Post einfügen")}catch(e){}}
+  else{const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
+}

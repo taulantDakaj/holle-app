@@ -560,3 +560,55 @@ alter table products add column if not exists bild_url text;
 alter table products add column if not exists beschreibung text;
 drop policy if exists fahrer_read on products;
 create policy fahrer_read on products for select to authenticated using (is_fahrer());
+-- ---------- Stempelkarte für den Kunden (auf seiner Bestellseite) ----------
+create or replace function tel_key(t text) returns text
+language sql immutable as $$
+  select case when length(n) >= 8 then n else '' end from (
+    select case
+      when x like '+%' then substr(x, 2)
+      when x like '00%' then substr(x, 3)
+      when x like '0%' then '49' || substr(x, 2)
+      else x end as n
+    from (select regexp_replace(coalesce(t,''), '[^0-9+]', '', 'g') as x) a) b;
+$$;
+
+create or replace function stempel_fuer(p_key text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare v_info jsonb; v_rasse int := 0; v_hybrid int := 0; v_st int; v_frei int;
+begin
+  if coalesce(p_key,'') = '' then return null; end if;
+  select data into v_info from bb_docs where coll = 'kunden' and id = p_key;
+  if v_info is null or not coalesce((v_info->>'karte')::boolean, false) or coalesce((v_info->>'gewerbe')::boolean, false) then return null; end if;
+  select
+    coalesce(sum(n) filter (where kat in ('Rassehühner','Zwerghühner')), 0),
+    coalesce(sum(n) filter (where kat = 'Hybrid-Legehennen'), 0)
+  into v_rasse, v_hybrid
+  from (
+    select coalesce(nullif(p->>'anzahl','')::numeric, 0)::int as n,
+      case when lower(trim(p->>'tier')) in ('maran','sussex','maran+','lohmann') then 'Hybrid-Legehennen'
+           else (select category from products where id = bestand_produkt(p->>'tier')) end as kat
+    from bb_docs o, jsonb_array_elements(case when jsonb_typeof(o.data->'positionen') = 'array' then o.data->'positionen' else '[]'::jsonb end) p
+    where o.coll = 'orders' and o.data->>'status' = 'abgeholt'
+      and tel_key(o.data->>'telefon') = p_key
+      and (coalesce(v_info->>'seit','') = '' or coalesce(o.data->>'datum','') >= v_info->>'seit')
+      and (p->>'tier') !~* '(\mhahn\M|hähne?\M)'
+  ) x;
+  v_st := v_rasse + floor(v_hybrid / 2.0)::int;
+  v_frei := greatest(0, floor(v_st / 10.0)::int - coalesce(nullif(v_info->>'eingeloest','')::int, 0));
+  return json_build_object('stempel', v_st, 'rest', v_st - floor(v_st / 10.0)::int * 10, 'frei', v_frei);
+end $$;
+revoke all on function stempel_fuer(text) from public, anon, authenticated;
+
+create or replace function get_my_order(p_id text) returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'nr', upper(substr(id, 1, 6)),
+    'vorname', split_part(coalesce(data->>'kunde',''), ' ', 1),
+    'datum', data->>'datum', 'tour', data->>'tour', 'ort', data->>'ort',
+    'positionen', coalesce(data->'positionen', '[]'::jsonb),
+    'status', data->>'status',
+    'bezahlt', data ? 'zahlung',
+    'stornierbar', (data->>'status') in ('neu','offen') and not (data ? 'zahlung') and (data->>'datum')::date > current_date,
+    'stempelkarte', stempel_fuer(tel_key(data->>'telefon')))
+  from bb_docs where coll = 'orders' and id = p_id and length(p_id) >= 16;
+$$;
