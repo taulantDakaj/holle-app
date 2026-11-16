@@ -758,8 +758,10 @@ function renderNeu(){
 /* ---------- Preise aus dem Sortiment als Vorschlag ---------- */
 let products=[];
 async function loadProducts(){
-  const {data,error}=await SB.from("products").select("*").order("sort").order("name");
-  if(error){toast("Sortiment konnte nicht geladen werden.");return}
+  let {data,error}=await SB.from("products").select("*").order("sort").order("name").then(r=>r,e=>({data:null,error:e}));
+  if(error){let alt=null;try{alt=JSON.parse(localStorage.getItem("holle-cache-products")||"null")}catch(e){}
+    if(alt){data=alt}else{toast("Sortiment konnte nicht geladen werden.");return}}
+  else{try{localStorage.setItem("holle-cache-products",JSON.stringify(data||[]))}catch(e){}}
   products=data||[];
   products.forEach(p=>{
     if(p.price!=null) PREIS_VORSCHLAG[p.name]=+p.price;
