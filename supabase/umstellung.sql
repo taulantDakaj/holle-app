@@ -128,12 +128,14 @@ begin
       'preis', case when v_hahn then v_prod.price_hahn else v_prod.price end));
   end loop;
 
+  perform set_config('holle.bestand_fertig', '1', true);
   insert into bb_docs (coll, id, data) values ('orders', v_id, jsonb_build_object(
     'kunde', v_kunde, 'telefon', v_tel, 'wohnort', v_wohn, 'adresse', '',
     'datum', v_datum, 'tour', v_tour, 'ort', v_ort, 'positionen', v_pos,
     'status', 'neu', 'quelle', 'kunde', 'bemerkung', v_bem,
     'created', v_now, 'updated', v_now));
 
+  perform set_config('holle.bestand_fertig', '', true);
   return json_build_object('nr', upper(substr(v_id, 1, 6)), 'datum', v_datum);
 end $$;
 
@@ -253,3 +255,51 @@ revoke all on function public.push_senden(text, text) from public, anon, authent
 revoke execute on function public.is_staff() from public, anon;
 grant execute on function public.is_staff() to authenticated;
 revoke execute on function public.push_test() from public, anon;
+
+-- ---------- Bestand automatisch nachführen (anlegen, ändern, stornieren, löschen) ----------
+create or replace function bestand_produkt(p_tier text) returns bigint
+language sql stable set search_path = public as $$
+  with b as (select trim(regexp_replace(trim(coalesce(p_tier,'')), '\s+Hahn$', '', 'i')) as n),
+  m as (select coalesce((select v from (values
+      ('bielefelder kennhuhn','Bielefelder Kennhühner'), ('schwedisches blumenhuhn','Schwedische Blumenhühner'),
+      ('zwerg lachshuhn','Zwerg Lachshühner'), ('zwerg wyandotte','Zwerg Wyandotten'), ('große wyandotte','Große Wyandotten'),
+      ('deutsches lachshuhn','Deutsche Lachshühner'), ('bartzwerg','Bartzwerge'), ('seidenhuhn','Seidenhühner'),
+      ('watermaalscher zwerg','Watermaalsche Zwerge'), ('weißhaube','Weißhauben'),
+      ('moderner englischer zwergkämpfer','Mod. Engl. Zwergkämpfer'), ('flugerpel','Flugenten'), ('lauferpel','Laufenten'),
+      ('wachtelhähne','Wachtelhennen'), ('wachtelhahn','Wachtelhennen')) x(k, v)
+      where k = lower((select n from b))), (select n from b)) as n)
+  select id from products where lower(name) = lower((select n from m)) limit 1;
+$$;
+
+create or replace function bestand_menge(d jsonb) returns table(pid bigint, menge int)
+language sql stable set search_path = public as $$
+  select bestand_produkt(e->>'tier'), sum(coalesce(nullif(e->>'anzahl','')::numeric, 0))::int
+  from jsonb_array_elements(case when d is null or d->>'status' = 'storniert'
+         or jsonb_typeof(d->'positionen') <> 'array' then '[]'::jsonb else d->'positionen' end) e
+  group by 1;
+$$;
+
+create or replace function bb_bestand_sync() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  if coalesce(current_setting('holle.bestand_fertig', true), '') = '1' then return null; end if;
+  if coalesce(new.coll, old.coll) <> 'orders' then return null; end if;
+  for r in
+    select pid, sum(m)::int as diff from (
+      select pid, menge as m from bestand_menge(case when tg_op <> 'DELETE' then new.data end)
+      union all
+      select pid, -menge from bestand_menge(case when tg_op <> 'INSERT' then old.data end)) x
+    where pid is not null group by pid having sum(m) <> 0
+  loop
+    update products set bestand = greatest(0, bestand - r.diff) where id = r.pid and bestand is not null;
+  end loop;
+  return null;
+exception when others then return null;  -- Bestand darf nie das Speichern einer Bestellung verhindern
+end $$;
+
+drop trigger if exists bb_bestand on bb_docs;
+create trigger bb_bestand after insert or update or delete on bb_docs
+  for each row execute function bb_bestand_sync();
+
+revoke all on function bb_bestand_sync() from public, anon, authenticated;
