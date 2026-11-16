@@ -188,19 +188,26 @@ insert into app_settings (key, value)
 create or replace function push_senden(titel text, text_ text) returns void
 language plpgsql security definer set search_path = public as $$
 declare
-  v_topic text := (select value from app_settings where key = 'ntfy_topic');
-  v_token text := (select value from app_settings where key = 'ntfy_token');
-  v_head  jsonb := '{"Content-Type":"application/json"}'::jsonb;
+  v_tg_token text := (select value from app_settings where key = 'telegram_token');
+  v_tg_chat  text := (select value from app_settings where key = 'telegram_chat_id');
+  v_topic    text := (select value from app_settings where key = 'ntfy_topic');
 begin
-  if coalesce(v_token, '') <> '' then v_head := v_head || jsonb_build_object('Authorization', 'Bearer ' || v_token); end if;
-  if v_topic is null or v_topic = '' then return; end if;
   begin
-    perform net.http_post(
-      url := 'https://ntfy.sh',
-      body := jsonb_build_object('topic', v_topic, 'title', titel, 'message', text_,
-                'tags', jsonb_build_array('chicken'), 'priority', 4,
-                'click', 'https://taulantdakaj.github.io/holle-app/admin.html'),
-      headers := v_head);
+    if coalesce(v_tg_token, '') <> '' and coalesce(v_tg_chat, '') <> '' then
+      -- Telegram (bevorzugt)
+      perform net.http_post(
+        url := 'https://api.telegram.org/bot' || v_tg_token || '/sendMessage',
+        body := jsonb_build_object('chat_id', v_tg_chat, 'text', '🐔 ' || titel || E'\n' || text_ ||
+                  E'\n\nhttps://taulantdakaj.github.io/holle-app/admin.html', 'disable_web_page_preview', true),
+        headers := '{"Content-Type":"application/json"}'::jsonb);
+    elsif coalesce(v_topic, '') <> '' then
+      -- ntfy (Ausweichweg)
+      perform net.http_post(url := 'https://ntfy.sh',
+        body := jsonb_build_object('topic', v_topic, 'title', titel, 'message', text_,
+                  'tags', jsonb_build_array('chicken'), 'priority', 4,
+                  'click', 'https://taulantdakaj.github.io/holle-app/admin.html'),
+        headers := '{"Content-Type":"application/json"}'::jsonb);
+    end if;
   exception when others then null; -- eine Bestellung darf nie an der Benachrichtigung scheitern
   end;
 end $$;

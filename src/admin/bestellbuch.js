@@ -842,10 +842,10 @@ loadProducts();loadFahrten();
 
 /* ---------- Push-Benachrichtigung ---------- */
 (async()=>{
-  const {data}=await SB.from("app_settings").select("value").eq("key","ntfy_topic").maybeSingle();
-  $("#push-topic").textContent=data?.value||"(noch nicht eingerichtet – Datenbank-Umstellung ausführen)";
+  const {data}=await SB.from("app_settings").select("key,value");
+  const m=Object.fromEntries((data||[]).map(r=>[r.key,r.value]));
+  $("#push-state").innerHTML=m.telegram_token&&m.telegram_chat_id?"<b>Telegram ist eingerichtet.</b>":"Telegram ist noch nicht eingerichtet.";
 })();
-$("#push-copy").onclick=async()=>{try{await navigator.clipboard.writeText($("#push-topic").textContent);toast("Kopiert")}catch(e){toast("Bitte von Hand markieren und kopieren.")}};
 $("#push-test").onclick=async()=>{const {error}=await SB.rpc("push_test");toast(error?"Test fehlgeschlagen.":"Test gesendet – kommt gleich aufs Handy")};
 
 /* ---------- Kundenkartei und Stempelkarte ---------- */
