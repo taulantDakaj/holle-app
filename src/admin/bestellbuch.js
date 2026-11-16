@@ -925,7 +925,7 @@ function stempel(os,info){
 }
 async function saveKunde(key,patch){
   const cur=kundenInfo[key]||{};
-  try{await window.__holle.db.doc("kunden/"+key).set({...cur,...patch,updated:new Date().toISOString()});toast("Gespeichert")}
+  try{const neu={...cur,...patch,updated:new Date().toISOString()};await window.__holle.db.doc("kunden/"+key).set(neu);kundenInfo[key]=neu;toast("Gespeichert")}
   catch(e){toast("Speichern fehlgeschlagen.")}
 }
 function renderKunden(){
@@ -1250,9 +1250,16 @@ function renderWarteliste(){
 /* ---------- Rundnachricht (z. B. Saisonstart) ---------- */
 var aktionen={};
 window.__holle.db.collection("aktionen").onSnapshot(s=>{aktionen={};s.docs.forEach(d=>aktionen[d.id]=d.data());renderRund()},()=>{});
-const RN_STD="Hallo {vorname}, hier ist Geflügelverkauf Holle 🐔\nAb März sind wir wieder mit unseren Touren für dich unterwegs – mit Junghennen, Rassehühnern, Enten und mehr.\n\nDu kannst ab sofort bequem vorbestellen: {link}\n\nViele Grüße\nGeflügelverkauf Holle";
+const RN_STOPP="\n\nDu bekommst von uns unregelmäßig etwa alle 4–6 Wochen eine kurze Info zu Neuigkeiten und Tourterminen. Wenn du das nicht möchtest, antworte einfach mit STOPP – dann nehmen wir dich sofort aus der Liste.";
+const RN_VORLAGEN=[{titel:"Saisonstart",aktion:"Saisonstart 2027",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle aus Rietberg 🐔\nAb März sind wir wieder mit unseren Touren für dich unterwegs – mit Junghennen, Rassehühnern, Enten, Gänsen und mehr.\n\nDu kannst jetzt schon bequem vorbestellen und dir deine Tiere sichern: {link}"+RN_STOPP},{titel:"Erste Nachricht (neue Kontakte)",aktion:"Willkommen Liste",text:"Hallo {vorname}, hier ist Taulant von Geflügelverkauf Holle aus Rietberg 🐔\nIch habe deine Nummer noch von einem Hühnerkauf bzw. einer Anfrage bei uns gespeichert und möchte dich ab jetzt kurz informieren, wenn es Neuigkeiten gibt – z. B. neue Rassen, Tourtermine bei dir in der Nähe oder Angebote.\n\nBestellen kannst du jederzeit hier: {link}"+RN_STOPP},{titel:"Neue Tiere eingetroffen",aktion:"Neue Tiere",text:"Hallo {vorname}, frische Ware bei Geflügelverkauf Holle 🐔\nGerade sind neue Junghennen und Rassehühner eingetroffen – die beliebten Rassen sind oft schnell weg.\n\nSchau gleich rein und reservier dir deine Tiere: {link}"+RN_STOPP},{titel:"Tourtermine",aktion:"Tourtermine",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle 🐔\nDie nächsten Tourtermine stehen fest – wir kommen wieder an unsere Haltepunkte in deiner Nähe.\n\nAlle Termine und Vorbestellung: {link}\nBestellst du vorher, ist dein Wunschtier sicher dabei."+RN_STOPP},{titel:"Frühjahr / Ostern",aktion:"Frühjahr",text:"Hallo {vorname}, der Frühling ist da 🌷🐔\nJetzt ist die beste Zeit, deinen Hühnerstall aufzustocken – wir haben Junghennen in vielen Farben und Rassen dabei.\n\nHier vorbestellen: {link}"+RN_STOPP},{titel:"Restplätze / Angebot",aktion:"Angebot",text:"Hallo {vorname}, kurze Info von Geflügelverkauf Holle 🐔\nFür die nächste Tour haben wir noch einige Tiere frei. Wer jetzt bestellt, bekommt sie garantiert.\n\nVerfügbare Tiere ansehen: {link}"+RN_STOPP},{titel:"Saisonende / Danke",aktion:"Saisonende",text:"Hallo {vorname}, die Tour-Saison ist zu Ende – vielen Dank, dass du bei Geflügelverkauf Holle gekauft hast! 🐔❤️\nIm März geht es wieder los. Bis dahin erreichst du uns jederzeit per WhatsApp, Abholung in Rietberg nach Absprache.\n\nVorbestellungen für nächstes Jahr: {link}"+RN_STOPP}];
+const RN_STD=RN_VORLAGEN[0].text;
 function rnKey(){return "rn-"+($("#rn-name").value.trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g,"-").replace(/^-|-$/g,"")||"aktion")}
-function rnText(k){return ($("#rn-text").value||RN_STD).replaceAll("{vorname}",vorname(k.name)).replaceAll("{link}",appBase())}
+function rnText(k){const v=vorname(k.name);return ($("#rn-text").value||RN_STD).replace(/ ?\{vorname\}/g,v?" "+v:"").replaceAll("{link}",appBase())}
+$("#rn-vorlage").innerHTML+=RN_VORLAGEN.map((v,i)=>`<option value="${i}">${esc(v.titel)}</option>`).join("");
+$("#rn-vorlage").addEventListener("change",async()=>{const v=RN_VORLAGEN[+$("#rn-vorlage").value];if(!v)return;
+  if($("#rn-text").value.trim()&&$("#rn-text").value!==v.text&&!confirm("Aktuellen Text durch die Vorlage ersetzen?")){$("#rn-vorlage").value="";return}
+  $("#rn-name").value=v.aktion+" "+new Date().getFullYear();$("#rn-text").value=v.text;$("#rn-vorlage").value="";
+  const k=rnKey(),cur=aktionen[k]||{};try{await window.__holle.db.doc("aktionen/"+k).set({...cur,name:$("#rn-name").value,text:v.text})}catch(e){}renderRund()});
 $("#rn-name").addEventListener("change",()=>{const a=aktionen[rnKey()];$("#rn-text").value=(a&&a.text)||RN_STD;renderRund()});
 $("#rn-text").addEventListener("change",async()=>{const k=rnKey(),a=aktionen[k]||{};try{await window.__holle.db.doc("aktionen/"+k).set({...a,name:$("#rn-name").value.trim(),text:$("#rn-text").value})}catch(e){}});
 ["#rn-f","#rn-ort"].forEach(s=>$(s).addEventListener("change",renderRund));
@@ -1270,7 +1277,11 @@ function renderRund(){
   ks.sort((x,y)=>(ges[x.key]?1:0)-(ges[y.key]?1:0)||x.name.localeCompare(y.name,"de"));
   $("#rn-info").textContent=`${ks.filter(k=>ges[k.key]).length} von ${ks.length} angeschrieben.`;
   box.innerHTML=ks.slice(0,400).map(k=>`<div class="kitem${ges[k.key]?" bezahlt":""}"><div class="kl"><b>${esc(k.name)}</b> <span class="sub">${esc(k.telefon)}${letzterOrt(k)?" · "+esc(letzterOrt(k)):k.kontaktNur?" · Kontakt":""}</span></div>
-    <div class="kr"><a class="btn ${ges[k.key]?"ghost":"wa"}" target="_blank" rel="noopener" data-rn="${esc(k.key)}" href="https://wa.me/${esc(telKey(k.telefon))}?text=${encodeURIComponent(rnText(k))}">${ges[k.key]?"✓ Nochmal":"Senden"}</a></div></div>`).join("")||`<p class="empty">Keine Kunden.</p>`;
+    <div class="kr"><a class="btn ${ges[k.key]?"ghost":"wa"}" target="_blank" rel="noopener" data-rn="${esc(k.key)}" href="https://wa.me/${esc(telKey(k.telefon))}?text=${encodeURIComponent(rnText(k))}">${ges[k.key]?"✓ Nochmal":"Senden"}</a>
+      <button class="btn ghost" type="button" data-rnstop="${esc(k.key)}" title="Hat mit STOPP geantwortet">Stopp</button></div></div>`).join("")||`<p class="empty">Keine Kunden.</p>`;
+  box.querySelectorAll("[data-rnstop]").forEach(b=>b.onclick=async()=>{const k=kundenListe().find(x=>x.key===b.dataset.rnstop);if(!k)return;
+    if(!confirm(k.name+" hat STOPP geschrieben – keine Rundnachrichten mehr senden?"))return;
+    await saveKunde(k.key,{keineRund:true,keineRundSeit:new Date().toISOString(),name:k.name,telefon:k.telefon});toast(k.name+" bekommt keine Rundnachrichten mehr");renderRund()});
   box.querySelectorAll("[data-rn]").forEach(el=>el.addEventListener("click",async()=>{
     const k=rnKey(),cur=aktionen[k]||{}; if((cur.gesendet||{})[el.dataset.rn]) return;
     const neu={...cur,name:$("#rn-name").value.trim(),text:$("#rn-text").value,gesendet:{...(cur.gesendet||{}),[el.dataset.rn]:new Date().toISOString()}};
