@@ -1276,6 +1276,9 @@ function renderFahrer(){
   const os=act.filter(o=>o.datum===cur&&o.tour===tc), tr=tourById(tc);
   const bez=os.filter(o=>o.zahlung).reduce((a,o)=>a+(+o.zahlung.betrag||0),0), nd=os.filter(o=>o.nichtDa).length;
   $("#fr-kpis").innerHTML=os.length?`<div class="kpi"><b>${os.length}</b><span>Kunden</span></div><div class="kpi"><b>${os.reduce((a,o)=>a+stueck(o),0)}</b><span>Tiere</span></div><div class="kpi"><b>${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</b><span>Summe</span></div><div class="kpi"><b>${esc(eur(bez))}</b><span>kassiert (${os.filter(o=>o.zahlung).length})</span></div>${nd?`<div class="kpi"><b>${nd}</b><span>nicht erschienen</span></div>`:""}`:"";
+  if(os.length){const fertig=os.filter(o=>o.zahlung||o.nichtDa).length,pz=Math.round(fertig/os.length*100);
+    $("#fr-kpis").insertAdjacentHTML("afterbegin",`<div class="fortschritt"><div class="fbar"><i style="width:${pz}%"></i></div><span>${fertig} von ${os.length} Kunden erledigt · ${pz} %</span></div>`);
+    motivation(cur,tc,fertig,os.length);}
   if(!tr){$("#fr-list").innerHTML="";return}
   const mapsLink=q=>"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q);
   const zeile=o=>{const z=o.zahlung, nr=telKey(o.telefon);
@@ -1539,3 +1542,33 @@ async function renderStandort(){
 }
 if(ROLLE==="fahrer"){try{if(localStorage.getItem(ST_KEY))standortStart()}catch(e){}}
 renderStandort(); setInterval(()=>{if(!document.hidden&&!$("#tab-fahrer").hidden)renderStandort()},30000);
+
+
+/* ---------- Motivation für den Fahrer ---------- */
+const MOTIV={
+  erster:["Der erste Kunde ist glücklich – läuft! 🐔","Erster Kunde erledigt – guter Start! 💪","Los geht's – der Erste ist durch! 🚚"],
+  25:["Ein Viertel geschafft – weiter so! 💪","25 % erledigt – du bist gut unterwegs! 🐔","Ein Viertel ist durch – stark angefangen! 👍"],
+  50:["Halbzeit! Die Hälfte ist geschafft – stark! 🙌","50 % erledigt – ab jetzt geht's bergab! 🚚","Die Hälfte ist durch – richtig gut gemacht! 💪"],
+  75:["Drei Viertel geschafft – der Endspurt beginnt! 🏁","Nur noch ein Viertel – gleich hast du's! 💪","75 % erledigt – die Hühner sind fast alle im neuen Zuhause! 🐔"],
+  100:["Tour geschafft! Alle Kunden erledigt – super Arbeit, danke dir! 🎉","Fertig! Jeder Kunde erledigt – starke Leistung heute! 🏆","Alles erledigt – gute Heimfahrt und danke für deinen Einsatz! 🚚🐔"]
+};
+function motivation(datum,tour,fertig,gesamt){
+  if(!gesamt) return;
+  const stufen=[]; if(fertig>=1) stufen.push("erster");
+  [25,50,75,100].forEach(p=>{if(fertig/gesamt*100>=p) stufen.push(String(p))});
+  const key="holle-motiv-"+datum+"-"+tour; let gezeigt=null;
+  try{gezeigt=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
+  if(gezeigt===null){try{localStorage.setItem(key,JSON.stringify(stufen))}catch(e){}return} // beim Öffnen nichts nachholen
+  const neu=stufen.filter(x=>!gezeigt.includes(x)); if(!neu.length) return;
+  try{localStorage.setItem(key,JSON.stringify(stufen))}catch(e){}
+  const st=neu[neu.length-1], liste=MOTIV[st], text=liste[Math.floor(Math.random()*liste.length)];
+  const name=vorname(window.__holle.user?.user_metadata?.name||"");
+  zeigeMotivation((name?name+", ":"")+text, st==="100");
+}
+function zeigeMotivation(text,gross){
+  document.querySelectorAll(".motiv").forEach(e=>e.remove());
+  const d=document.createElement("div"); d.className="motiv"+(gross?" gross":""); d.setAttribute("role","status");
+  d.innerHTML=`<div>${esc(text)}</div>`; d.onclick=()=>d.remove(); document.body.appendChild(d);
+  try{navigator.vibrate&&navigator.vibrate(gross?[80,60,80,60,160]:80)}catch(e){}
+  setTimeout(()=>d.remove(),gross?7000:4500);
+}

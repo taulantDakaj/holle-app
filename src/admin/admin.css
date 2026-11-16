@@ -65,3 +65,11 @@ label.full textarea{width:100%}
 
 body.rolle-fahrer nav.tabs button:not([data-tab=fahrer]),body.rolle-fahrer #neuBox,body.rolle-fahrer #fr-list [data-q]{display:none!important}
 .fztouren{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin-top:6px;font-size:.9rem}.fztouren label{flex-direction:row;display:flex;gap:4px;align-items:center;font-weight:600}.fztouren input{width:auto}
+
+.fortschritt{flex-basis:100%;width:100%;margin-bottom:6px}
+.fortschritt span{font-size:.85rem;font-weight:600;color:var(--muted,#666)}
+.fbar{height:12px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:4px}
+.fbar i{display:block;height:100%;background:linear-gradient(90deg,#2e7d32,#66bb6a);transition:width .6s}
+.motiv{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:50;max-width:92vw;width:380px;background:#1b5e20;color:#fff;border-radius:16px;padding:16px 18px;font:700 1.1rem/1.35 var(--body,inherit);text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:motivIn .35s ease-out}
+.motiv.gross{top:50%;bottom:auto;transform:translate(-50%,-50%);font-size:1.35rem;padding:26px 22px;background:linear-gradient(135deg,#b3121f,#5e0810)}
+@keyframes motivIn{from{opacity:0;margin-bottom:-20px}to{opacity:1;margin-bottom:0}}
