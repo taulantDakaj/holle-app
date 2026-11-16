@@ -187,8 +187,12 @@ insert into app_settings (key, value)
 
 create or replace function push_senden(titel text, text_ text) returns void
 language plpgsql security definer set search_path = public as $$
-declare v_topic text := (select value from app_settings where key = 'ntfy_topic');
+declare
+  v_topic text := (select value from app_settings where key = 'ntfy_topic');
+  v_token text := (select value from app_settings where key = 'ntfy_token');
+  v_head  jsonb := '{"Content-Type":"application/json"}'::jsonb;
 begin
+  if coalesce(v_token, '') <> '' then v_head := v_head || jsonb_build_object('Authorization', 'Bearer ' || v_token); end if;
   if v_topic is null or v_topic = '' then return; end if;
   begin
     perform net.http_post(
@@ -196,7 +200,7 @@ begin
       body := jsonb_build_object('topic', v_topic, 'title', titel, 'message', text_,
                 'tags', jsonb_build_array('chicken'), 'priority', 4,
                 'click', 'https://taulantdakaj.github.io/holle-app/admin.html'),
-      headers := '{"Content-Type":"application/json"}'::jsonb);
+      headers := v_head);
   exception when others then null; -- eine Bestellung darf nie an der Benachrichtigung scheitern
   end;
 end $$;
