@@ -1683,7 +1683,7 @@ function tierInfoBearbeiten(id){
       const patch={beschreibung:$("#ti-text").value.trim()||null};
       if(neuesBild){
         const pfad=`p${p.id}-${Date.now()}.jpg`;
-        const {error}=await SB.storage.from("tierbilder").upload(pfad,neuesBild,{contentType:"image/jpeg",upsert:true});
+        const {error}=await SB.storage.from("tierbilder").upload(pfad,neuesBild,{contentType:"image/jpeg",upsert:false});
         if(error) throw error;
         patch.bild_url=SB.storage.from("tierbilder").getPublicUrl(pfad).data.publicUrl;
       } else if(bildWeg) patch.bild_url=null;

@@ -82,3 +82,4 @@ body.rolle-fahrer nav.tabs button:not([data-tab=fahrer]),body.rolle-fahrer #neuB
 
 #offline-banner{position:fixed;left:0;right:0;top:0;z-index:60;padding:8px 12px;font:600 .9rem/1.3 inherit;text-align:center;color:#fff}
 #offline-banner.off{background:#b26a00}#offline-banner.sync{background:#1565c0}#offline-banner.ok{background:#2e7d32}
+.toast{z-index:100!important}
