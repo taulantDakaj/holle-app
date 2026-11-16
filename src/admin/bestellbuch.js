@@ -1774,13 +1774,15 @@ async function igStart(){
   if(!igGeladen){
     igGeladen=true;
     try{await Promise.all(["800 80px Outfit","600 40px Outfit","400 30px Outfit"].map(f=>document.fonts.load(f)))}catch(e){}
-    const h=iso(new Date()), bis=iso(new Date(Date.now()+75*864e5));
+    const h=iso(new Date()), bis=iso(new Date(Date.now()+365*864e5));
     const {data}=await SB.from("fahrten").select("datum,tour,nur_orte,hinweis,aktiv").gte("datum",h).lte("datum",bis).eq("aktiv",true).order("datum");
     igFahrten=data||[];
     const tage=[...new Set(igFahrten.map(f=>f.datum))];
     $("#ig-datum").innerHTML=tage.map(d=>`<option value="${d}">${esc(dShort(d))} · ${igFahrten.filter(f=>f.datum===d).map(f=>tourById(f.tour)?.nr||f.tour).join(", ")}</option>`).join("")||`<option value="">Keine Termine</option>`;
     $("#ig-titel").value=igTitel();
-    ["#ig-datum"].forEach(s=>$(s).addEventListener("change",()=>{$("#ig-titel").value=igTitel();igMalen()}));
+    $("#ig-datum").addEventListener("change",()=>{igTourAuswahl();$("#ig-titel").value=igTitel();igMalen()});
+    $("#ig-tour").addEventListener("change",igMalen);
+    igTourAuswahl();
     ["#ig-format","#ig-titel","#ig-sub"].forEach(s=>$(s).addEventListener("input",igMalen));
     $("#ig-foto").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
       const url=URL.createObjectURL(f);igFoto=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=url});$("#ig-foto-weg").hidden=!igFoto;igMalen()});
@@ -1790,6 +1792,10 @@ async function igStart(){
   }
   igMalen();
 }
+function igTourAuswahl(){
+  const d=$("#ig-datum").value, ts=(igFahrten||[]).filter(f=>f.datum===d).map(f=>f.tour);
+  $("#ig-tour").innerHTML=`<option value="">Alle Touren an dem Tag${ts.length>1?" ("+ts.length+")":""}</option>`+ts.map(t=>{const tr=tourById(t);return `<option value="${t}">${esc(tr?tr.nr+" – "+tr.name:t)}</option>`}).join("");
+}
 function igTitel(){
   const d=$("#ig-datum").value; if(!d) return "";
   const dt=new Date(d+"T12:00"), tage=Math.round((dt-new Date(iso(new Date())+"T12:00"))/864e5);
@@ -1798,7 +1804,8 @@ function igTitel(){
 }
 function igTouren(){
   const d=$("#ig-datum").value;
-  return (igFahrten||[]).filter(f=>f.datum===d).map(f=>{const t=tourById(f.tour); if(!t) return null;
+  const nur=$("#ig-tour").value;
+  return (igFahrten||[]).filter(f=>f.datum===d&&(!nur||f.tour===nur)).map(f=>{const t=tourById(f.tour); if(!t) return null;
     const stops=t.stops.filter(s=>s[1]!==HOME&&(!f.nur_orte||!f.nur_orte.length||f.nur_orte.includes(s[1])));
     return {nr:t.nr,name:t.name,stops,hinweis:f.hinweis||""}}).filter(Boolean);
 }
