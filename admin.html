@@ -51,6 +51,7 @@
     <button role="tab" data-tab="neu" aria-selected="true">Bestellung aufnehmen</button>
     <button role="tab" data-tab="liste" aria-selected="false">Bestellungen <span class="n" id="cnt">0</span></button>
     <button role="tab" data-tab="kunden" aria-selected="false">Kunden</button>
+    <button role="tab" data-tab="kasse" aria-selected="false">Kasse</button>
     <button role="tab" data-tab="bedarf" aria-selected="false">Tierbedarf</button>
     <button role="tab" data-tab="bestell" aria-selected="false">Bestellliste</button>
     <button role="tab" data-tab="lade" aria-selected="false">Ladeliste</button>
@@ -128,6 +129,26 @@
     <div id="k-detail"></div>
     <div class="tablewrap"><table class="list" id="k-table"></table></div>
     <p class="hint">Stempelkarte: 1 Rassehenne = 1 Stempel, 2 Hybridhennen = 1 Stempel (Hähne zählen nicht). Gezählt werden nur abgeholte Bestellungen ab dem Tag, an dem die Karte eingerichtet wurde. 10 Stempel = 1 Huhn nach Wahl bis 30 €. Nur für Privatkunden.</p>
+  </section>
+
+  <!-- KASSE -->
+  <section id="tab-kasse" class="panel" hidden>
+    <div class="filters">
+      <label>Verkaufstag<input type="date" id="ka-datum"></label>
+      <label>Haltepunkt<select id="ka-ort"><option value="">Alle</option></select></label>
+    </div>
+    <div class="kpis" id="ka-kpis"></div>
+    <div id="ka-list"></div>
+    <div class="section-h">Tagesabschluss</div>
+    <div id="ka-abschluss"></div>
+    <div class="section-h">Kassenberichte</div>
+    <div class="filters">
+      <label>Monat<input type="month" id="ka-monat"></label>
+      <label>Erste Bericht-Nr. (nur beim allerersten Abschluss)<input id="ka-startnr" inputmode="numeric" placeholder="z. B. 138"></label>
+    </div>
+    <div class="tablewrap"><table class="list" id="ka-berichte"></table></div>
+    <div class="actions"><button class="btn ghost" type="button" id="ka-csv">Monat als Excel-Liste (CSV)</button></div>
+    <p class="hint">Hilfe für deinen Kassenbericht (offene Ladenkasse): Die App zeigt, was laut Bestellungen bar, per PayPal und per Überweisung kassiert wurde. Den gezählten Kassenbestand, Ausgaben und Belege trägst du wie gewohnt in deinen Kassenbericht ein.</p>
   </section>
 
   <!-- BEDARF -->

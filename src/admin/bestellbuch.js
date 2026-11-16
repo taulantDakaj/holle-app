@@ -166,7 +166,7 @@ $("#form").addEventListener("submit",async e=>{
 
 /* ---------- Tabs ---------- */
 function showTab(id){document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id));
-  ["neu","liste","kunden","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
+  ["neu","liste","kunden","kasse","bedarf","bestell","lade","fahr","nach","app"].forEach(t=>$("#tab-"+t).hidden=t!==id);try{localStorage.setItem("holle-tab",id)}catch(e){}}
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------- Filter / Auswahl ---------- */
@@ -643,7 +643,7 @@ function renderAll(){
   { const sel=$("#l-datum"),cur=sel.value,ds=[...new Set(orders.filter(o=>istAlt(o)===listArchiv).map(o=>o.datum).filter(Boolean))].sort();
     if(listArchiv) ds.reverse();
     sel.innerHTML=`<option value="">Alle Termine</option>`+ds.map(d=>`<option value="${d}">${esc(dLong(d))}</option>`).join(""); sel.value=ds.includes(cur)?cur:""; }dateOptions($("#p-datum"),false);
-  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
+  renderList();renderPaper();renderBedarf();renderReminder();renderNeu();renderKunden();renderKasse();renderBestell();dateOptions($("#f2-datum"),false);renderFahr();if(!renderPlzTable.done){renderPlzTable();renderPlzTable.done=1}
 }
 resetForm();renderAll();
 try{const t=localStorage.getItem("holle-tab");if(t)showTab(t)}catch(e){}
@@ -999,3 +999,91 @@ $("#cardShare").onclick=async()=>{
     const a=document.createElement("a");a.href=URL.createObjectURL(cardFile);a.download=cardFile.name;document.body.appendChild(a);a.click();a.remove();
   }
 };
+
+/* ---------- Kasse am Haltepunkt und Tagesabschluss ---------- */
+var kasseDocs={};
+window.__holle.db.collection("kasse").onSnapshot(s=>{kasseDocs={};s.docs.forEach(d=>kasseDocs[d.id]=d.data());renderKasse()},()=>{});
+const ZART={bar:"Bar",paypal:"PayPal",ueberweisung:"Überweisung"};
+function kaDefaultDatum(){
+  const h=iso(new Date()), ds=[...new Set(orders.filter(o=>o.status!=="storniert").map(o=>o.datum))].sort();
+  return ds.includes(h)?h:(ds.filter(d=>d<=h).pop()||h);
+}
+function kaOrders(d){return orders.filter(o=>o.datum===d&&o.status!=="storniert")}
+function kaSummen(os){
+  const s={bar:0,paypal:0,ueberweisung:0,offen:0,offenN:0,n:os.length};
+  os.forEach(o=>{if(o.zahlung&&ZART[o.zahlung.art]) s[o.zahlung.art]+=+o.zahlung.betrag||0; else {s.offen+=betrag(o);s.offenN++}});
+  s.summe=s.bar+s.paypal+s.ueberweisung; return s;
+}
+async function kaZahlung(id,art){
+  const o=orders.find(x=>x.id===id); if(!o) return;
+  const inp=document.querySelector(`[data-kbetrag="${CSS.escape(id)}"]`);
+  const b=num(inp?inp.value:betrag(o));
+  if(art&&(b===undefined||b===null)){toast("Bitte den kassierten Betrag eintragen.");inp&&inp.focus();return}
+  const {id:_,...rest}=o, now=new Date().toISOString();
+  const upd={...rest,updated:now};
+  if(art){upd.zahlung={art,betrag:b,zeit:now};upd.status="abgeholt"}
+  else{delete upd.zahlung;if(upd.status==="abgeholt")upd.status="offen"}
+  try{await saveOrder(id,upd);toast(art?`${o.kunde}: ${eur(b)} ${ZART[art]}`:"Zahlung zurückgenommen")}catch(e){toast("Speichern fehlgeschlagen.")}
+}
+function renderKasse(){
+  const dIn=$("#ka-datum"); if(!dIn||!kasseDocs) return;
+  if(!dIn.value) dIn.value=kaDefaultDatum();
+  if(!$("#ka-monat").value) $("#ka-monat").value=dIn.value.slice(0,7);
+  const d=dIn.value, alle=kaOrders(d);
+  const ortSel=$("#ka-ort"), orte=[...new Set(alle.map(o=>o.ort))].sort((a,b)=>a.localeCompare(b,"de"));
+  const cur=ortSel.value; ortSel.innerHTML=`<option value="">Alle (${alle.length})</option>`+orte.map(o=>`<option${o===cur?" selected":""}>${esc(o)}</option>`).join("");
+  const os=alle.filter(o=>!ortSel.value||o.ort===ortSel.value).sort((a,b)=>(a.zahlung?1:0)-(b.zahlung?1:0)||a.ort.localeCompare(b.ort,"de")||a.kunde.localeCompare(b.kunde,"de"));
+  const s=kaSummen(alle), abg=kasseDocs[d];
+  $("#ka-kpis").innerHTML=`<div class="kpi"><b>${esc(eur(s.bar))}</b><span>Bar</span></div><div class="kpi"><b>${esc(eur(s.paypal))}</b><span>PayPal</span></div><div class="kpi"><b>${esc(eur(s.ueberweisung))}</b><span>Überweisung</span></div><div class="kpi"><b>${s.offenN}</b><span>noch offen${s.offen?" · "+esc(eur(s.offen)):""}</span></div>`;
+  $("#ka-list").innerHTML=os.length?os.map(o=>{const z=o.zahlung;return `<div class="kitem${z?" bezahlt":""}">
+      <div class="kl"><span class="odot" style="background:${ortFarbe(o.ort)}"></span><b>${esc(o.kunde)}</b> <span class="sub">${esc(o.ort)}</span>
+        <div class="sub">${esc(tierText(o,", "))}</div></div>
+      ${z?`<div class="kr"><b>${esc(eur(z.betrag))}</b> <span class="chip abgeholt">${esc(ZART[z.art]||z.art)}</span>
+          ${abg?"":`<button class="linkbtn" type="button" data-kundo="${esc(o.id)}">ändern</button>`}</div>`
+        :`<div class="kr"><input data-kbetrag="${esc(o.id)}" inputmode="decimal" value="${betrag(o)||""}" placeholder="€">
+          <div class="kbtns"><button class="btn" type="button" data-kz="bar" data-kid="${esc(o.id)}">Bar</button><button class="btn ghost" type="button" data-kz="paypal" data-kid="${esc(o.id)}">PayPal</button><button class="btn ghost" type="button" data-kz="ueberweisung" data-kid="${esc(o.id)}">Überw.</button></div></div>`}
+    </div>`}).join(""):`<p class="empty">An diesem Tag gibt es keine Bestellungen.</p>`;
+  $("#ka-list").querySelectorAll("[data-kz]").forEach(b=>b.onclick=()=>kaZahlung(b.dataset.kid,b.dataset.kz));
+  $("#ka-list").querySelectorAll("[data-kundo]").forEach(b=>b.onclick=()=>confirm("Zahlung zurücknehmen?")&&kaZahlung(b.dataset.kundo,null));
+  // Tagesabschluss
+  const touren=[...new Set(alle.map(o=>o.tour))].map(t=>tourById(t)?.nr||t).join(" + ");
+  $("#ka-abschluss").innerHTML=abg?`<div class="kabschluss done"><b>Kassenbericht Nr. ${esc(abg.nr)}</b> – abgeschlossen am ${esc(new Date(abg.abgeschlossen).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}))}<br>
+      Bar ${esc(eur(abg.bar))} · PayPal ${esc(eur(abg.paypal))} · Überweisung ${esc(eur(abg.ueberweisung))} · ${esc(abg.vermerk||"")}</div>`
+    :`<div class="kabschluss"><label>Vermerk<input id="ka-vermerk" value="${esc(touren)}"></label>
+      <p class="sub">${s.offenN?`<b>${s.offenN} Bestellung${s.offenN>1?"en sind":" ist"} noch nicht bezahlt.</b> Nicht abgeholte bitte vorher stornieren oder auf einen anderen Tag legen.`:"Alle Bestellungen sind bezahlt."}</p>
+      <button class="btn" type="button" id="ka-close">Tag abschließen</button></div>`;
+  const cb=$("#ka-close"); if(cb) cb.onclick=kaAbschliessen;
+  renderBerichte();
+}
+async function kaAbschliessen(){
+  const d=$("#ka-datum").value, s=kaSummen(kaOrders(d));
+  const nrs=Object.values(kasseDocs).map(k=>+k.nr).filter(n=>n>0);
+  let nr=nrs.length?Math.max(...nrs)+1:parseInt($("#ka-startnr").value,10);
+  if(!nr){toast("Bitte beim ersten Mal die erste Bericht-Nr. eintragen.");$("#ka-startnr").focus();return}
+  if(!confirm(`Verkaufstag ${dShort(d)} als Kassenbericht Nr. ${nr} abschließen?\nBar ${eur(s.bar)} · PayPal ${eur(s.paypal)} · Überweisung ${eur(s.ueberweisung)}\n\nDanach lassen sich die Zahlungen dieses Tages nicht mehr ändern.`))return;
+  try{await window.__holle.db.doc("kasse/"+d).set({nr,datum:d,vermerk:$("#ka-vermerk").value.trim(),bar:s.bar,paypal:s.paypal,ueberweisung:s.ueberweisung,offen:s.offen,anzahl:s.n,abgeschlossen:new Date().toISOString()});toast(`Kassenbericht Nr. ${nr} gespeichert`)}
+  catch(e){toast("Speichern fehlgeschlagen.")}
+}
+function renderBerichte(){
+  const m=$("#ka-monat").value, tb=$("#ka-berichte");
+  const ks=Object.values(kasseDocs).filter(k=>k.datum&&k.datum.startsWith(m)).sort((a,b)=>a.datum.localeCompare(b.datum));
+  if(!ks.length){tb.innerHTML=`<tbody><tr><td class="empty">Noch keine abgeschlossenen Tage in diesem Monat.</td></tr></tbody>`;return}
+  const t=ks.reduce((a,k)=>({bar:a.bar+k.bar,paypal:a.paypal+k.paypal,ueb:a.ueb+k.ueberweisung}),{bar:0,paypal:0,ueb:0});
+  tb.innerHTML=`<thead><tr><th>Nr.</th><th>Datum</th><th>Vermerk</th><th class="num">Bar</th><th class="num">PayPal</th><th class="num">Überw.</th></tr></thead><tbody>`+
+    ks.map(k=>`<tr class="row" data-kd="${esc(k.datum)}"><td>${esc(k.nr)}</td><td style="white-space:nowrap">${esc(dShort(k.datum))}</td><td>${esc(k.vermerk||"")}</td><td class="num">${esc(eur(k.bar))}</td><td class="num">${esc(eur(k.paypal))}</td><td class="num">${esc(eur(k.ueberweisung))}</td></tr>`).join("")+
+    `<tr class="tot"><td colspan="3">Summe ${ks.length} Tage</td><td class="num">${esc(eur(t.bar))}</td><td class="num">${esc(eur(t.paypal))}</td><td class="num">${esc(eur(t.ueb))}</td></tr></tbody>`;
+  tb.querySelectorAll("[data-kd]").forEach(r=>r.onclick=()=>{$("#ka-datum").value=r.dataset.kd;renderKasse();window.scrollTo({top:0,behavior:"smooth"})});
+}
+$("#ka-csv").onclick=()=>{
+  const m=$("#ka-monat").value;
+  const ks=Object.values(kasseDocs).filter(k=>k.datum&&k.datum.startsWith(m)).sort((a,b)=>a.datum.localeCompare(b.datum));
+  if(!ks.length){toast("Keine abgeschlossenen Tage in diesem Monat.");return}
+  const f=v=>String(v??"").replace(/;/g,","), e=n=>(+n||0).toFixed(2).replace(".",",");
+  const lines=["Nr.;Datum;Vermerk;Bar;PayPal;Überweisung;Summe;Bestellungen"].concat(ks.map(k=>[k.nr,k.datum.split("-").reverse().join("."),f(k.vermerk),e(k.bar),e(k.paypal),e(k.ueberweisung),e(k.bar+k.paypal+k.ueberweisung),k.anzahl].join(";")));
+  // Einzelpositionen dazu
+  lines.push("","Datum;Kunde;Haltepunkt;Tiere;Zahlart;Betrag");
+  ks.forEach(k=>orders.filter(o=>o.datum===k.datum&&o.zahlung).forEach(o=>lines.push([k.datum.split("-").reverse().join("."),f(o.kunde),f(o.ort),f(tierText(o,", ")),ZART[o.zahlung.art]||"",e(o.zahlung.betrag)].join(";"))));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv"}));a.download=`Kasse_${m}.csv`;document.body.appendChild(a);a.click();a.remove();toast("Liste gespeichert");
+};
+["#ka-datum","#ka-ort"].forEach(s=>$(s).addEventListener("change",renderKasse));
+$("#ka-monat").addEventListener("change",renderBerichte);

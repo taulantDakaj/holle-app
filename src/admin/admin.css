@@ -37,3 +37,12 @@ b.ok{color:var(--ok)}
 .cardbox h3{margin:0 0 10px;font:800 1.2rem var(--display);text-transform:uppercase}
 .cardbox img{width:100%;border-radius:10px;display:block;background:#eee;aspect-ratio:4/5}
 .btn.wa[hidden]{display:none!important}
+.kitem{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px}
+.kitem.bezahlt{opacity:.75;background:var(--bg)}
+.kitem .kl{flex:1 1 200px;min-width:0}
+.kitem .kr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kitem .kr input{width:90px;text-align:right}
+.kbtns{display:flex;gap:6px}
+.kbtns .btn{padding:8px 11px;font-size:.88rem}
+.kabschluss{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.kabschluss.done{border-color:var(--ok)}
