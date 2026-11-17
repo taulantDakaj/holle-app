@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, fmtDate, fmtPrice, todayISO, groupBy, SHOP_PHONE, SHOP_WA, DATENSCHUTZ_URL } from './lib.js';
 import { TOURS, ORT_KOORD } from './tours.js';
 import { meinToken, setMeinToken } from './MeinHolle.jsx';
+import { GutscheinTeaser } from './Gutschein.jsx';
 
 let plzCache = null;
 async function plzKoord(plz) {
@@ -163,6 +164,7 @@ export default function Shop() {
     <Page>
       {!data && !err && <div className="card">Lade Angebot …</div>}
       {err && <div className="alert">{err} <a href={`https://wa.me/${SHOP_WA}`}>WhatsApp</a></div>}
+      {data && <GutscheinTeaser />}
       {data && (
         <form onSubmit={submit}>
           <section className="card">
@@ -352,7 +354,7 @@ function Variant({ label, price, value, onChange }) {
   );
 }
 
-function Page({ children }) {
+export function Page({ children }) {
   return (
     <div className="shop">
       <header className="hero">

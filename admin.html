@@ -165,6 +165,7 @@
     <div class="seg" id="nach-seg">
       <button type="button" data-seg="tour" aria-pressed="true">Tour-Erinnerung</button>
       <button type="button" data-seg="warte" aria-pressed="false">Warteliste <span class="n" id="wl-n" hidden>0</span></button>
+      <button type="button" data-seg="gutschein" aria-pressed="false">Gutscheine <span class="n" id="gs-n" hidden>0</span></button>
       <button type="button" data-seg="rund" aria-pressed="false">Rundnachricht</button>
       <button type="button" data-seg="bewert" aria-pressed="false">Google-Bewertung <span class="n" id="bw-n" hidden>0</span></button>
       <button type="button" data-seg="news" aria-pressed="false">App-News</button>
@@ -182,6 +183,17 @@
     <div id="seg-warte" hidden>
       <p class="hint" style="margin-top:0">Kunden, die sich bei ausverkauften Tieren in der App eingetragen haben. Sind die Tiere wieder da: Bestand im Tab „Kunden-App“ eintragen und hier der Reihe nach Bescheid geben.</p>
       <div id="wl-list"></div>
+    </div>
+    <div id="seg-gutschein" hidden>
+      <p class="hint" style="margin-top:0">Gutschein-Bestellungen aus der App. Ablauf: <b>Bestätigen</b> (WhatsApp mit Zahlungsdaten) → <b>Bezahlt</b> → Karte von Hand ausfüllen (Nr. eintragen) → <b>Verschickt</b> bzw. <b>Abgeholt</b> → beim Einlösen <b>Eingelöst</b>.</p>
+      <div class="filters">
+        <label>PayPal (E-Mail oder paypal.me-Link)<input id="gs-paypal" placeholder="z. B. paypal.me/…"></label>
+        <label>Überweisung (Inhaber, IBAN)<input id="gs-iban" placeholder="Kontoinhaber, IBAN"></label>
+        <label>Suchen (Nr. oder Name)<input id="gs-such" placeholder="G-…"></label>
+        <label>Anzeigen<select id="gs-filter"><option value="offen">Offene</option><option value="alle">Alle</option><option value="eingeloest">Eingelöste</option></select></label>
+      </div>
+      <p class="hint" id="gs-info"></p>
+      <div id="gs-list"></div>
     </div>
     <div id="seg-rund" hidden>
       <div class="filters">

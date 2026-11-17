@@ -298,3 +298,21 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 .grosserhahn { display: block; background: #fbf6f2; border-radius: 12px; padding: .8rem; margin-top: .4rem; }
 .ghzeile { display: grid; gap: .4rem; margin-top: .6rem; }
 .ghzeile select { width: 100%; padding: .55rem .6rem; border: 1px solid #ddd; border-radius: 10px; font: inherit; background: #fff; }
+
+/* ---------- Gutscheine ---------- */
+.gs-teaser { display: flex; gap: 12px; align-items: center; text-decoration: none; color: inherit; border: 2px solid var(--red); }
+.gs-teaser img { width: 110px; border-radius: 6px; flex: none; }
+.gs-teaser b { display: block; color: var(--red); font-size: 1.05rem; margin-bottom: 2px; }
+.gs-teaser span { font-size: .9rem; color: var(--muted); }
+.gs-kopf h2 { margin-top: 0; }
+.gs-kopf p { margin: 6px 0 0; }
+.gs-frist { background: #fff4e5; border-radius: 8px; padding: 8px 10px; }
+.gs-motive { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.gs-motiv { border: 2px solid var(--line); background: #fff; border-radius: 10px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; font-weight: 600; color: var(--muted); }
+.gs-motiv img { width: 100%; border-radius: 6px; display: block; }
+.gs-motiv.on { border-color: var(--red); color: var(--red); }
+.gs-label { font-weight: 600; margin: 4px 0 6px; }
+.gs-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.gs-chips button { min-height: 44px; min-width: 64px; padding: 0 14px; border-radius: 99px; border: 2px solid var(--line); background: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; color: inherit; }
+.gs-chips button.on { border-color: var(--red); background: var(--red); color: #fff; }
+.gs-anzahl { margin-top: 10px; }

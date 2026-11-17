@@ -1232,7 +1232,7 @@ $("#fi-save").onclick=async()=>{
 
 /* ---------- Nachrichten: Bereiche ---------- */
 var nachSeg="tour";
-function setSeg(s){nachSeg=s;["tour","warte","rund","bewert","news","insta"].forEach(x=>{$("#seg-"+x).hidden=x!==s});if(s==="insta")igStart();if(s==="news")newsLaden();
+function setSeg(s){nachSeg=s;["tour","warte","gutschein","rund","bewert","news","insta"].forEach(x=>{$("#seg-"+x).hidden=x!==s});if(s==="insta")igStart();if(s==="news")newsLaden();
   document.querySelectorAll("#nach-seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.seg===s));
   if(s==="warte") ladeWarteliste(); renderNachrichten();}
 document.querySelectorAll("#nach-seg button").forEach(b=>b.onclick=()=>setSeg(b.dataset.seg));
@@ -1240,7 +1240,7 @@ function badge(id,n){const e=$(id);if(!e)return;e.textContent=n;e.hidden=!n}
 function renderNachrichten(){
   if(!$("#rn-list")||!aktionen||!warteliste||!firma) return;
   renderRund(); renderBewert(); renderWarteliste();
-  badge("#nach-n",bewertKandidaten().length+warteliste.filter(w=>!w.benachrichtigt).length);
+  badge("#nach-n",bewertKandidaten().length+warteliste.filter(w=>!w.benachrichtigt).length+gsOffenNeu());
 }
 
 /* ---------- Warteliste ---------- */
@@ -2004,3 +2004,52 @@ function preisInfo(p){
     $("#in-go").disabled=false;
   };
 })();
+
+/* ---------- Gutscheine (Bestellungen aus der Kunden-App, #/gutschein) ---------- */
+var gutscheine=[], gsEinst={};
+function gsOffenNeu(){return (gutscheine||[]).filter(g=>g.status==="neu").length}
+const GS_ST={neu:"Neu",bestaetigt:"Zahlung angefragt",bezahlt:"Bezahlt",verschickt:"Verschickt",abgeholt:"Abgeholt",eingeloest:"Eingelöst",storniert:"Storniert"};
+window.__holle.db.collection("gutscheine").onSnapshot(s=>{gutscheine=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.created).localeCompare(String(a.created)));renderGutscheine();badge("#gs-n",gsOffenNeu());try{renderNachrichten()}catch(e){}},()=>{});
+window.__holle.db.collection("einstellungen").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="gutschein");gsEinst=d?d.data():{};
+  [["paypal","#gs-paypal"],["iban","#gs-iban"]].forEach(([k,id])=>{const e=$(id);if(e&&document.activeElement!==e)e.value=gsEinst[k]||""})},()=>{});
+["#gs-paypal","#gs-iban"].forEach(id=>{const e=$(id);if(e)e.addEventListener("change",async()=>{
+  const v={...gsEinst,paypal:$("#gs-paypal").value.trim(),iban:$("#gs-iban").value.trim(),updated:new Date().toISOString()};
+  try{await window.__holle.db.doc("einstellungen/gutschein").set(v);gsEinst=v;toast("Gespeichert")}catch(x){toast("Speichern fehlgeschlagen.")}})});
+["#gs-such","#gs-filter"].forEach(id=>{const e=$(id);if(e)e.addEventListener("input",renderGutscheine)});
+function gsEuro(n){return Number(n||0).toLocaleString("de-DE")+" €"}
+function gsBestaetText(g){
+  const zahl=[gsEinst.paypal?`PayPal: ${gsEinst.paypal}`:"",gsEinst.iban?`Überweisung: ${gsEinst.iban}`:""].filter(Boolean).join("\n")||"PayPal: [ ]\nÜberweisung: [ ]";
+  return `Hallo ${vorname(g.name)}, vielen Dank für deine Gutschein-Bestellung bei Geflügelverkauf Holle 🎁🐔\n\n${g.anzahl}× Gutschein über ${gsEuro(g.wert)} (${g.motiv==="neutral"?"ganzjährig":"Weihnachten"})\nGesamt: ${gsEuro(g.summe)}\n\nBitte überweise den Betrag mit dem Verwendungszweck ${g.nr}:\n${zahl}\n\n`+
+    (g.art==="post"?`Sobald das Geld da ist, schreiben wir den Gutschein von Hand und schicken ihn per Post an:\n${g.adresse}`:`Sobald das Geld da ist, liegt der Gutschein in Rietberg für dich bereit. Wann passt dir die Abholung?`)+`\n\n${SHOP_WA_TEXT_GRUSS}`;
+}
+function gsBezahltText(g){return `Hallo ${vorname(g.name)}, die Zahlung für deinen Gutschein ${g.nr} ist angekommen – danke! 🎁\n`+(g.art==="post"?"Der Gutschein geht jetzt in die Post.":"Der Gutschein liegt in Rietberg für dich bereit.")+`\n\n${SHOP_WA_TEXT_GRUSS}`}
+async function gsSetze(id,patch){const g=gutscheine.find(x=>x.id===id);if(!g)return;const {id:_i,...d}=g;const neu={...d,...patch,updated:new Date().toISOString()};
+  try{await window.__holle.db.doc("gutscheine/"+id).set(neu);Object.assign(g,patch);renderGutscheine();badge("#gs-n",gsOffenNeu())}catch(e){toast("Hat nicht geklappt.")}}
+function renderGutscheine(){
+  const box=$("#gs-list"); if(!box) return;
+  const q=($("#gs-such")&&$("#gs-such").value||"").trim().toLowerCase(), f=$("#gs-filter")?$("#gs-filter").value:"offen";
+  let ls=gutscheine.filter(g=>f==="alle"?true:f==="eingeloest"?g.status==="eingeloest":!["eingeloest","storniert"].includes(g.status));
+  if(q) ls=ls.filter(g=>(g.nr+" "+g.name+" "+(g.fuer||"")).toLowerCase().includes(q));
+  const bez=gutscheine.filter(g=>["bezahlt","verschickt","abgeholt","eingeloest"].includes(g.status));
+  const offenWert=gutscheine.filter(g=>["bezahlt","verschickt","abgeholt"].includes(g.status)).reduce((a,g)=>a+(+g.summe||0),0);
+  if($("#gs-info")) $("#gs-info").textContent=`${gutscheine.length} Bestellungen · ${bez.reduce((a,g)=>a+(+g.anzahl||0),0)} Gutscheine bezahlt (${gsEuro(bez.reduce((a,g)=>a+(+g.summe||0),0))}) · noch nicht eingelöst: ${gsEuro(offenWert)}`;
+  if(!ls.length){box.innerHTML=`<p class="empty">Keine Gutscheine in dieser Ansicht.</p>`;return}
+  box.innerHTML=ls.map(g=>{const st=g.status||"neu";
+    const btn=(k,l,cls="ghost")=>`<button class="btn ${cls}" type="button" data-gs="${esc(g.id)}" data-st="${k}">${l}</button>`;
+    const wa=(t,l,cls,st2)=>`<a class="btn ${cls}" target="_blank" rel="noopener" data-gswa="${esc(g.id)}" data-st="${st2||""}" href="https://wa.me/${esc(waNum(g.telefon))}?text=${encodeURIComponent(t)}">${l}</a>`;
+    let aktion="";
+    if(st==="neu") aktion=wa(gsBestaetText(g),"Bestätigen + Zahlungsdaten","wa","bestaetigt");
+    else if(st==="bestaetigt") aktion=btn("bezahlt","✓ Bezahlt","primary")+wa(gsBestaetText(g),"Nochmal schreiben","ghost");
+    else if(st==="bezahlt") aktion=(g.art==="post"?btn("verschickt","✓ Verschickt","primary"):btn("abgeholt","✓ Abgeholt","primary"))+wa(gsBezahltText(g),"Zahlung bestätigen","wa");
+    else if(st==="verschickt"||st==="abgeholt") aktion=btn("eingeloest","Eingelöst");
+    if(!["eingeloest","storniert"].includes(st)) aktion+=btn("storniert","Storno");
+    return `<div class="kitem${["eingeloest","storniert"].includes(st)?" bezahlt":""}"><div class="kl"><b>${esc(g.nr)}</b> · <b>${esc(g.name)}</b> <span class="sub">${esc(g.telefon)}${g.email?" · "+esc(g.email):""}</span>
+      <div>${g.anzahl}× ${gsEuro(g.wert)} = <b>${gsEuro(g.summe)}</b> · ${g.motiv==="neutral"?"ganzjährig":"Weihnachten"} · ${g.art==="post"?(g.an==="beschenkt"?"Post direkt an Beschenkten":"Post an Käufer"):"Abholung Rietberg"}</div>
+      ${g.art==="post"?`<div class="sub">📮 ${esc(g.adresse)}</div>`:""}
+      ${g.fuer||g.von?`<div class="sub">✍️ Für: ${esc(g.fuer||"–")} · Von: ${esc(g.von||"–")}</div>`:""}
+      ${g.bemerkung?`<div class="sub">💬 ${esc(g.bemerkung)}</div>`:""}
+      <div class="sub">${esc(GS_ST[st]||st)} · bestellt ${esc(new Date(g.created).toLocaleDateString("de-DE"))}</div></div>
+      <div class="kr">${aktion}</div></div>`}).join("");
+  box.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const st=b.dataset.st;if(st==="storniert"&&!confirm("Gutschein-Bestellung stornieren?"))return;gsSetze(b.dataset.gs,{status:st,["am_"+st]:new Date().toISOString()})});
+  box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString()})}));
+}
