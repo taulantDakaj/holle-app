@@ -63,3 +63,21 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function push_status() from public, anon;
 grant execute on function push_status() to authenticated;
+
+-- Code-Eingabe für „Mein Holle“ (iPhone-Home-Bildschirm hat eigenen Speicher)
+create table if not exists mein_code_versuche (zeit timestamptz not null default now());
+alter table mein_code_versuche enable row level security;
+create or replace function mein_code_einloesen(p_code text) returns text
+language plpgsql security definer set search_path = public as $$
+declare c text := lower(regexp_replace(coalesce(p_code,''), '[^a-zA-Z0-9]', '', 'g')); t text;
+begin
+  if length(c) <> 8 then raise exception 'Der Code hat 8 Zeichen.'; end if;
+  delete from mein_code_versuche where zeit < now() - interval '1 hour';
+  if (select count(*) from mein_code_versuche) > 200 then raise exception 'Gerade zu viele Versuche. Bitte später nochmal.'; end if;
+  insert into mein_code_versuche default values;
+  select token into t from kunden_zugang where left(token, 8) = c limit 1;
+  if t is null then raise exception 'Code nicht gefunden. Bitte nochmal prüfen.'; end if;
+  return t;
+end $$;
+revoke all on function mein_code_einloesen(text) from public;
+grant execute on function mein_code_einloesen(text) to anon, authenticated;

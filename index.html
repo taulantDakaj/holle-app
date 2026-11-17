@@ -8,7 +8,16 @@
     <meta name="apple-mobile-web-app-title" content="Holle" />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <script>
+      // Persönliches Manifest: Das Home-Bildschirm-Symbol startet direkt in „Mein Holle“
+      (function () {
+        var t = (location.search.match(/[?&]k=([a-f0-9]{16,})/i) || location.hash.match(/^#\/k\/([a-f0-9]{16,})/i) || [])[1];
+        try { t = t || localStorage.getItem('holle-mein'); } catch (e) {}
+        var l = document.createElement('link'); l.rel = 'manifest';
+        l.href = t ? 'https://azukcqhiyutyzpokkxva.supabase.co/functions/v1/manifest?k=' + t : './manifest.webmanifest';
+        document.head.appendChild(l);
+      })();
+    </script>
     <title>Hühner online bestellen · Geflügelverkauf Holle</title>
     <meta name="description" content="Junghennen, Rassehühner, Enten und mehr online vorbestellen – Abholung am Haltepunkt in deiner Nähe, Bezahlung erst bei Abholung." />
     <meta property="og:type" content="website" />

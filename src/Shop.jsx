@@ -343,7 +343,7 @@ function Page({ children }) {
           <h1>Geflügelverkauf <em>Holle</em></h1>
           <p>Hühner, Enten &amp; mehr vorbestellen – Abholung am Haltepunkt oder in Rietberg</p>
         </div>
-        {meinToken() && <a className="mein-knopf" href="./#/mein">Mein Holle</a>}
+        {(meinToken() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) && <a className="mein-knopf" href="./#/mein">Mein Holle</a>}
       </header>
       <main>{children}</main>
       <footer>Geflügelverkauf Holle · 33397 Rietberg · @gefluegelholle</footer>

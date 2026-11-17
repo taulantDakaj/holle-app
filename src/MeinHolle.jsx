@@ -32,8 +32,9 @@ function persoenlichesManifest(token) {
       display: 'standalone', background_color: '#e5e5e5', theme_color: '#7a1414',
       icons: [192, 512].map((s) => ({ src: new URL(`./icon-${s}.png`, location.href).href, sizes: `${s}x${s}`, type: 'image/png' })),
     };
+    void m;
     const link = document.querySelector('link[rel="manifest"]');
-    if (link) link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
+    if (link) link.href = 'https://azukcqhiyutyzpokkxva.supabase.co/functions/v1/manifest?k=' + token;
     history.replaceState(null, '', `./?k=${token}#/mein`);
   } catch { /* egal */ }
 }
@@ -97,7 +98,8 @@ export default function MeinHolle({ token }) {
       </header>
       <main>
         {d === undefined && <div className="card">Lade …</div>}
-        {d === null && (
+        {d === null && !token && <CodeEingabe />}
+        {d === null && token && (
           <div className="card">
             <h2>Link nicht gefunden</h2>
             <p>Öffne deinen persönlichen Link aus unserer WhatsApp-Nachricht oder schreib uns kurz.</p>
@@ -125,6 +127,7 @@ export default function MeinHolle({ token }) {
               <div className="card push">
                 <b>📲 Mein Holle als App aufs iPhone</b>
                 <p>Tippe unten in Safari auf <b>Teilen</b> <span aria-hidden>⬆️</span> und dann <b>„Zum Home-Bildschirm“</b>. Öffne Mein Holle danach über das neue Symbol – dann kannst du auch Mitteilungen erlauben.</p>
+                <p className="hint">Fragt die App nach einem Code, gib diesen ein: <b className="code">{token.slice(0, 4).toUpperCase()}-{token.slice(4, 8).toUpperCase()}</b></p>
               </div>
             )}
 
@@ -185,6 +188,30 @@ export default function MeinHolle({ token }) {
         )}
       </main>
       <footer>Geflügelverkauf Holle · 33397 Rietberg · @gefluegelholle</footer>
+    </div>
+  );
+}
+
+function CodeEingabe() {
+  const [code, setCode] = useState('');
+  const [msg, setMsg] = useState('');
+  async function los() {
+    setMsg('');
+    const { data, error } = await supabase.rpc('mein_code_einloesen', { p_code: code });
+    if (error || !data) { setMsg((error && error.message) || 'Code nicht gefunden.'); return; }
+    setMeinToken(data);
+    location.replace(`./?k=${data}#/mein`);
+  }
+  return (
+    <div className="card">
+      <h2>Mein Holle verbinden</h2>
+      <p>Gib den 8-stelligen Code ein, der in Safari unter „Mein Holle“ steht – oder öffne deinen persönlichen Link aus unserer WhatsApp-Nachricht.</p>
+      <div className="wl">
+        <input placeholder="z. B. AB12-CD34" value={code} onChange={(e) => setCode(e.target.value)} autoCapitalize="characters" autoComplete="one-time-code" style={{ fontSize: '1.3rem', letterSpacing: '.1em', textAlign: 'center' }} />
+        {msg && <div className="alert">{msg}</div>}
+        <button className="btn primary" onClick={los}>Verbinden</button>
+      </div>
+      <a className="btn wa" href={`https://wa.me/${SHOP_WA}?text=${encodeURIComponent('Hallo, kannst du mir meinen Mein-Holle-Link schicken?')}`}>Link per WhatsApp anfragen</a>
     </div>
   );
 }
