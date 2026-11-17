@@ -612,3 +612,208 @@ language sql stable security definer set search_path = public as $$
     'stempelkarte', stempel_fuer(tel_key(data->>'telefon')))
   from bb_docs where coll = 'orders' and id = p_id and length(p_id) >= 16;
 $$;
+
+-- ---------- Kundenbereich „Mein Holle“ ----------
+create table if not exists kunden_zugang (
+  tel_key text primary key,
+  token text not null unique default replace(gen_random_uuid()::text, '-', ''),
+  created timestamptz not null default now(),
+  zuletzt timestamptz
+);
+alter table kunden_zugang enable row level security;
+drop policy if exists staff_all on kunden_zugang;
+create policy staff_all on kunden_zugang for all to authenticated using (is_staff()) with check (is_staff());
+
+create table if not exists news (
+  id bigserial primary key,
+  titel text not null,
+  text text not null default '',
+  bild_url text,
+  erstellt timestamptz not null default now(),
+  sichtbar boolean not null default true,
+  gepusht timestamptz
+);
+alter table news enable row level security;
+drop policy if exists staff_all on news;
+create policy staff_all on news for all to authenticated using (is_staff()) with check (is_staff());
+
+create table if not exists sprueche (
+  id int primary key,
+  text text not null,
+  aktiv boolean not null default true
+);
+alter table sprueche enable row level security;
+drop policy if exists staff_all on sprueche;
+create policy staff_all on sprueche for all to authenticated using (is_staff()) with check (is_staff());
+insert into sprueche (id, text) values
+(1, 'Ein Tag ohne Hühner ist möglich – aber sinnlos. 🐔'),
+(2, 'Glück ist, wenn morgens ein warmes Ei im Nest liegt. 🥚'),
+(3, 'Erst kommt das Huhn, dann das Ei – und dann das Frühstück. 🍳'),
+(4, 'Hühner sind wie Chips: Bei einem bleibt es nie. 😄'),
+(5, 'Wer Hühner hat, braucht keinen Wecker – nur Geduld bis zum ersten Ei.'),
+(6, 'Mein Garten, meine Regeln? Nein: Mein Garten, ihre Regeln. 🐓'),
+(7, 'Hühner gucken ist das neue Fernsehen. 📺🐔'),
+(8, 'Frische Eier vom eigenen Huhn schmecken einfach nach Zuhause.'),
+(9, 'Gackern ist Silber, Legen ist Gold. 🥇'),
+(10, 'Wer früh aufsteht, findet das Ei zuerst.'),
+(11, 'Hühner hören immer zu – sie geben nur selten Ratschläge.'),
+(12, 'Ein Huhn im Garten ist besser als zehn im Supermarkt.'),
+(13, 'Die beste Therapie hat Federn. 🪶'),
+(14, 'Kein Unkraut, keine Schnecken, dafür jede Menge gute Laune.'),
+(15, 'Hühner zählen ist wie Schäfchen zählen – nur lustiger.'),
+(16, 'Heute schon ein Huhn gestreichelt? 🤗'),
+(17, 'Das Leben ist wie ein Hühnerstall: Etwas Ordnung, viel Gegacker.'),
+(18, 'Wenn die Hühner glücklich sind, ist das Frühstück gerettet.'),
+(19, 'Wer Hühner liebt, liebt auch frühes Aufstehen. Na ja – fast. 😅'),
+(20, 'Hinter jedem guten Ei steckt ein zufriedenes Huhn.'),
+(21, 'Zuhause ist da, wo die Hühner auf dich warten. 🏡'),
+(22, 'Ein Ei am Tag – und die Welt ist in Ordnung.'),
+(23, 'Hühner: die einzigen Haustiere, die Frühstück liefern. 🥚'),
+(24, 'Ruhe bewahren und Hühner beobachten.'),
+(25, 'Wer sagt, Hühner seien dumm, hat noch nie eins beim Futter-Erpressen erlebt. 😄'),
+(26, 'Im Hühnerstall gibt es keine schlechten Tage – nur verschiedene Federn.'),
+(27, 'Gut Ding will Weile haben – und ein gutes Ei auch.'),
+(28, 'Die Hennen wissen genau, wer das Futter bringt. 😉'),
+(29, 'Ein Garten ohne Hühner ist nur ein Garten.'),
+(30, 'Federn, Freunde, frische Eier – mehr braucht es nicht.'),
+(31, 'Morgens Eier sammeln ist wie Ostern – nur jeden Tag. 🐣'),
+(32, 'Hühner haben keine Eile – und trotzdem schaffen sie jeden Tag ein Ei.'),
+(33, 'Wer Hühner hält, hat immer etwas zu erzählen.'),
+(34, 'Auch das größte Omelett fängt mit einem Ei an. 🍳'),
+(35, 'Gute Laune ist ansteckend – besonders im Hühnerstall.'),
+(36, 'Die Henne denkt mit dem Bauch – und hat meistens recht.'),
+(37, 'Ein Schwätzchen am Zaun mit den Hühnern ersetzt manchen Kaffeeklatsch. ☕'),
+(38, 'Hühner bringen Leben in jeden Garten – und manchmal ins Beet. 😅'),
+(39, 'Das schönste Geräusch am Morgen? Das Gackern nach dem Legen.'),
+(40, 'Kleine Hühner, große Freude.'),
+(41, 'Jedes Huhn hat seinen eigenen Kopf – genau das macht sie so liebenswert.'),
+(42, 'Wer einmal eigene Eier hatte, kauft nie wieder gern im Laden.'),
+(43, 'Hühnerglück lässt sich nicht kaufen – nur abholen. 😉'),
+(44, 'Zeit mit Hühnern ist nie verschwendet.'),
+(45, 'Ein voller Futternapf macht viele Freunde. 🐔🐔🐔'),
+(46, 'Die Hühner wissen: Gut gescharrt ist halb gefunden.'),
+(47, 'Ob braun, weiß oder grün – jedes Ei ist ein kleines Wunder. 🥚'),
+(48, 'Hühner machen glücklich – wissenschaftlich unbewiesen, gefühlt ganz sicher. 😄'),
+(49, 'Wer Hühner hat, hat immer Gesellschaft.'),
+(50, 'Gackern verbindet. 🧡'),
+(51, 'Ein Stall voller Hühner ist ein Herz voller Freude.'),
+(52, 'Winterpause? Unsere Hühner freuen sich schon auf den Frühling. 🌱')
+on conflict (id) do nothing;
+
+create table if not exists push_abos (
+  endpoint text primary key,
+  p256dh text not null,
+  auth text not null,
+  tel_key text,
+  created timestamptz not null default now(),
+  fehler int not null default 0
+);
+alter table push_abos enable row level security;
+drop policy if exists staff_read on push_abos;
+create policy staff_read on push_abos for select to authenticated using (is_staff());
+
+-- Zugang holen/anlegen (intern)
+create or replace function mein_token(p_key text) returns text
+language plpgsql security definer set search_path = public, extensions as $$
+declare t text;
+begin
+  if coalesce(p_key,'') = '' then return null; end if;
+  select token into t from kunden_zugang where tel_key = p_key;
+  if t is null then
+    insert into kunden_zugang (tel_key) values (p_key) on conflict (tel_key) do nothing;
+    select token into t from kunden_zugang where tel_key = p_key;
+  end if;
+  return t;
+end $$;
+revoke all on function mein_token(text) from public, anon, authenticated;
+
+-- Für die Verwaltung: Links für mehrere Kunden auf einmal
+create or replace function mein_links(p_keys text[]) returns json
+language plpgsql security definer set search_path = public as $$
+declare r json;
+begin
+  if not is_staff() then raise exception 'Kein Zugriff.'; end if;
+  select coalesce(json_object_agg(k, mein_token(k)), '{}'::json) into r from unnest(p_keys) k where coalesce(k,'') <> '';
+  return r;
+end $$;
+revoke all on function mein_links(text[]) from public, anon;
+grant execute on function mein_links(text[]) to authenticated;
+
+create or replace function spruch_der_woche() returns text
+language sql stable security definer set search_path = public as $$
+  select text from sprueche where aktiv
+  order by id
+  offset (select (extract(week from current_date)::int + extract(isoyear from current_date)::int * 53) % greatest(count(*),1) from sprueche where aktiv)
+  limit 1;
+$$;
+
+create or replace function get_mein_holle(p_token text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare v_key text; v_name text; v_ort text;
+begin
+  select tel_key into v_key from kunden_zugang where token = p_token and length(p_token) >= 16;
+  if v_key is null then return null; end if;
+  select data->>'kunde', data->>'ort' into v_name, v_ort from bb_docs
+    where coll = 'orders' and tel_key(data->>'telefon') = v_key and data->>'status' <> 'storniert'
+    order by data->>'datum' desc limit 1;
+  return json_build_object(
+    'vorname', split_part(coalesce(v_name, (select data->>'name' from bb_docs where coll='kunden' and id=v_key), ''), ' ', 1),
+    'ort', v_ort,
+    'spruch', spruch_der_woche(),
+    'news', coalesce((select json_agg(json_build_object('id', id, 'titel', titel, 'text', text, 'bild_url', bild_url, 'datum', erstellt) order by erstellt desc)
+       from (select * from news where sichtbar order by erstellt desc limit 8) n), '[]'::json),
+    'huehner', coalesce((select json_agg(h order by h.seit desc) from (
+        select p->>'tier' as tier, sum(coalesce(nullif(p->>'anzahl','')::numeric,0))::int as anzahl, min(o.data->>'datum') as seit, max(o.data->>'datum') as zuletzt,
+          max(pr.id) as product_id, max(pr.bild_url) as bild_url, max(pr.category) as kategorie, bool_or(pr.available) as bestellbar
+        from bb_docs o cross join jsonb_array_elements(case when jsonb_typeof(o.data->'positionen')='array' then o.data->'positionen' else '[]'::jsonb end) p
+        left join products pr on pr.id = bestand_produkt(p->>'tier')
+        where o.coll='orders' and o.data->>'status'='abgeholt' and tel_key(o.data->>'telefon') = v_key
+        group by p->>'tier') h), '[]'::json),
+    'offen', coalesce((select json_agg(json_build_object('id', id, 'datum', data->>'datum', 'ort', data->>'ort', 'tour', data->>'tour', 'status', data->>'status',
+         'positionen', data->'positionen') order by data->>'datum')
+       from bb_docs where coll='orders' and tel_key(data->>'telefon') = v_key and data->>'status' in ('neu','offen') and (data->>'datum')::date >= current_date), '[]'::json),
+    'stempelkarte', stempel_fuer(v_key)
+  );
+end $$;
+revoke all on function get_mein_holle(text) from public;
+grant execute on function get_mein_holle(text) to anon, authenticated;
+
+create or replace function mein_holle_besuch(p_token text) returns void
+language sql security definer set search_path = public as $$
+  update kunden_zugang set zuletzt = now() where token = p_token;
+$$;
+revoke all on function mein_holle_besuch(text) from public;
+grant execute on function mein_holle_besuch(text) to anon, authenticated;
+
+-- Bestellseite liefert den Link zu „Mein Holle“
+create or replace function mein_link_zur_bestellung(p_id text) returns text
+language sql security definer set search_path = public as $$
+  select mein_token(tel_key(data->>'telefon')) from bb_docs where coll='orders' and id = p_id and length(p_id) >= 16;
+$$;
+revoke all on function mein_link_zur_bestellung(text) from public;
+grant execute on function mein_link_zur_bestellung(text) to anon, authenticated;
+
+-- Mitteilungen: Abo speichern / löschen
+create or replace function push_abo_speichern(p jsonb, p_token text default null) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_key text;
+begin
+  if coalesce(p->>'endpoint','') !~ '^https://' or coalesce(p->'keys'->>'p256dh','') = '' or coalesce(p->'keys'->>'auth','') = '' then
+    raise exception 'Ungültiges Abo.'; end if;
+  if (select count(*) from push_abos where created > now() - interval '1 hour') > 300 then raise exception 'Bitte später nochmal.'; end if;
+  select tel_key into v_key from kunden_zugang where token = p_token;
+  insert into push_abos (endpoint, p256dh, auth, tel_key) values (left(p->>'endpoint', 1000), left(p->'keys'->>'p256dh', 200), left(p->'keys'->>'auth', 100), v_key)
+    on conflict (endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth, tel_key = coalesce(excluded.tel_key, push_abos.tel_key), fehler = 0;
+  return json_build_object('ok', true);
+end $$;
+create or replace function push_abo_loeschen(p_endpoint text) returns void
+language sql security definer set search_path = public as $$ delete from push_abos where endpoint = p_endpoint; $$;
+revoke all on function push_abo_speichern(jsonb, text) from public;
+revoke all on function push_abo_loeschen(text) from public;
+grant execute on function push_abo_speichern(jsonb, text) to anon, authenticated;
+grant execute on function push_abo_loeschen(text) to anon, authenticated;
+
+create or replace function push_anzahl() returns int
+language sql stable security definer set search_path = public as $$ select case when is_staff() then (select count(*)::int from push_abos) end; $$;
+revoke all on function push_anzahl() from public, anon;
+grant execute on function push_anzahl() to authenticated;

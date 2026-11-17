@@ -38,3 +38,28 @@ grant execute on function backup_status() to authenticated;
 -- jeden Sonntag ca. 20 Uhr (19:07 UTC im Winter)
 select cron.unschedule(jobid) from cron.job where jobname = 'holle-backup';
 select cron.schedule('holle-backup', '7 19 * * 0', 'select public.backup_senden()');
+create or replace function news_push(p_id bigint) returns json
+language plpgsql security definer set search_path = public, extensions as $$
+declare n news%rowtype;
+begin
+  if not is_staff() then raise exception 'Kein Zugriff.'; end if;
+  select * into n from news where id = p_id;
+  if not found then raise exception 'News nicht gefunden.'; end if;
+  perform net.http_post(
+    url := 'https://azukcqhiyutyzpokkxva.supabase.co/functions/v1/push-senden',
+    headers := jsonb_build_object('Content-Type','application/json','x-push-secret',(select value from app_settings where key='push_secret')),
+    body := jsonb_build_object('titel', n.titel, 'text', left(n.text, 200), 'url', '/#/mein'),
+    timeout_milliseconds := 60000);
+  update news set gepusht = now() where id = p_id;
+  return json_build_object('ok', true);
+end $$;
+revoke all on function news_push(bigint) from public, anon;
+grant execute on function news_push(bigint) to authenticated;
+
+create or replace function push_status() returns json
+language sql stable security definer set search_path = public as $$
+  select case when is_staff() then json_build_object('abos', (select count(*) from push_abos),
+    'letztes', (select value::json from app_settings where key='push_letztes')) end;
+$$;
+revoke all on function push_status() from public, anon;
+grant execute on function push_status() to authenticated;

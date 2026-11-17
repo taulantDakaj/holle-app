@@ -267,3 +267,29 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 .stk-feld.gratis.an { color: inherit; font-size: 1.35rem; background: #ffd54f; border-color: #ffd54f; }
 .stk-text { margin: .8rem 0 .2rem; }
 .stk .hint { color: rgba(255,255,255,.75); margin: 0; }
+
+/* Mein Holle */
+.hero { position: relative; }
+.mein-knopf { position: absolute; right: 14px; top: 14px; background: #fff; color: #9b1c24; font-weight: 700; font-size: .85rem; padding: .4rem .8rem; border-radius: 999px; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.mein .card h2 { margin-top: 0; }
+.spruch { background: linear-gradient(135deg, #fff4ef, #ffe3dc); border: 0; text-align: center; }
+.spruch-label { font-size: .75rem; font-weight: 800; letter-spacing: .12em; color: #b3121f; text-transform: uppercase; }
+.spruch p { font-size: 1.25rem; font-weight: 700; line-height: 1.35; margin: .5rem 0 .2rem; color: #4a0d10; }
+.push { border: 2px solid #b3121f; }
+.push p { margin: .4rem 0 .8rem; }
+.news { padding: .8rem 0; border-top: 1px solid #eee; }
+.news:first-of-type { border-top: 0; padding-top: 0; }
+.news img { width: 100%; border-radius: 12px; margin-bottom: .5rem; }
+.news-datum { font-size: .78rem; color: #888; }
+.news h3 { margin: .15rem 0 .25rem; font-size: 1.05rem; }
+.news p { margin: 0; white-space: pre-line; }
+.offen { display: grid; gap: .1rem; padding: .7rem .8rem; margin-top: .5rem; border-radius: 12px; background: #faf6f4; color: inherit; text-decoration: none; }
+.offen .sub, .huhn .sub { color: #777; font-size: .85rem; }
+.huehner { display: grid; gap: .6rem; }
+.huhn { display: grid; grid-template-columns: 56px 1fr auto; gap: .7rem; align-items: center; }
+.huhn-bild { width: 56px; height: 56px; border-radius: 12px; overflow: hidden; background: #f3ece9; display: grid; place-items: center; font-size: 1.6rem; }
+.huhn-bild img { width: 100%; height: 100%; object-fit: cover; }
+.huhn-text { display: grid; }
+.btn.gross { display: block; text-align: center; font-size: 1.1rem; padding: 1rem; margin: 1rem 0; }
+.hint.center { text-align: center; }
+.linkbtn { background: none; border: 0; color: #b3121f; font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }

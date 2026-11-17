@@ -971,7 +971,7 @@ function renderKundeDetail(){
         <button class="btn warn" type="button" id="k-aus">Karte beenden</button></div>`:
       `<p class="sub">Noch keine Stempelkarte. Richte sie ein, wenn der Kunde danach fragt.</p>
        <div class="btns"><button class="btn" type="button" id="k-an">Stempelkarte einrichten</button><button class="btn ghost" type="button" id="k-gew">Gewerbe / Mobilstall</button></div>`}
-    <div class="btns" style="margin-top:8px"><button class="btn ghost" type="button" id="k-stop">${k.info.keineRund?"✓ Keine Rundnachrichten (aufheben)":"Keine Rundnachrichten"}</button>
+    <div class="btns" style="margin-top:8px"><a class="btn wa" id="k-mein" target="_blank" rel="noopener" href="#">Mein-Holle-Link senden</a><button class="btn ghost" type="button" id="k-stop">${k.info.keineRund?"✓ Keine Rundnachrichten (aufheben)":"Keine Rundnachrichten"}</button>
       ${k.kontaktNur?'<button class="btn warn" type="button" id="k-del">Aus Kartei entfernen</button>':""}</div>
     <div class="section-h">Bestellungen</div>
     <div class="tablewrap"><table class="list"><tbody>${k.orders.map(o=>{const tr=tourById(o.tour);return `<tr class="row" data-id="${esc(o.id)}"><td style="white-space:nowrap">${esc(dShort(o.datum))}</td><td>${esc(tr?tr.nr:o.tour)} · ${esc(o.ort)}</td><td>${esc(tierText(o,", "))}</td><td class="num">${betrag(o)?esc(eur(betrag(o))):""}</td><td><span class="chip ${esc(o.status)}">${esc(o.status||"offen")}</span></td></tr>`}).join("")}</tbody></table></div>
@@ -985,6 +985,9 @@ function renderKundeDetail(){
   on("#k-gew0",()=>saveKunde(k.key,{gewerbe:false}));
   on("#k-einl",()=>confirm("Gratis-Huhn als eingelöst eintragen?")&&saveKunde(k.key,{eingeloest:(+k.info.eingeloest||0)+1}));
   on("#k-bild",()=>openCard(k));
+  {const a=$("#k-mein"); if(a){const nr=telKey(k.telefon); if(!nr){a.remove()} else {
+    const setz=()=>{const l=meinLink(k.key); a.href=`https://wa.me/${nr}?text=${encodeURIComponent(`Hallo ${vorname(k.name)}, hier ist Geflügelverkauf Holle 🐔\nIn „Mein Holle“ siehst du deine Hühner, deine Stempelkarte und unsere Neuigkeiten:\n${l}\n\nTipp: Seite öffnen → Teilen → „Zum Home-Bildschirm“, dann hast du sie wie eine App.`)}`};
+    if(meinLink(k.key)) setz(); else {a.style.opacity=.5; meinLinksLaden([k.key],()=>{a.style.opacity=1;setz()})}}}}
   on("#k-stop",()=>saveKunde(k.key,{keineRund:!k.info.keineRund,name:k.name,telefon:k.telefon}));
   on("#k-del",async()=>{if(!confirm(k.name+" aus der Kartei entfernen?"))return;try{await window.__holle.db.doc("kunden/"+k.key).delete();kSel=null;toast("Entfernt")}catch(e){toast("Hat nicht geklappt.")}});
   on("#k-neu",()=>{resetForm();$("#f-kunde").value=k.name;$("#f-tel").value=k.telefon;$("#f-wohnort").value=k.wohnort;showTab("neu");window.scrollTo({top:0,behavior:"smooth"})});
@@ -1207,7 +1210,7 @@ $("#fi-save").onclick=async()=>{
 
 /* ---------- Nachrichten: Bereiche ---------- */
 var nachSeg="tour";
-function setSeg(s){nachSeg=s;["tour","warte","rund","bewert","insta"].forEach(x=>{$("#seg-"+x).hidden=x!==s});if(s==="insta")igStart();
+function setSeg(s){nachSeg=s;["tour","warte","rund","bewert","news","insta"].forEach(x=>{$("#seg-"+x).hidden=x!==s});if(s==="insta")igStart();if(s==="news")newsLaden();
   document.querySelectorAll("#nach-seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.seg===s));
   if(s==="warte") ladeWarteliste(); renderNachrichten();}
 document.querySelectorAll("#nach-seg button").forEach(b=>b.onclick=()=>setSeg(b.dataset.seg));
@@ -1254,10 +1257,10 @@ function renderWarteliste(){
 var aktionen={};
 window.__holle.db.collection("aktionen").onSnapshot(s=>{aktionen={};s.docs.forEach(d=>aktionen[d.id]=d.data());renderRund()},()=>{});
 const RN_STOPP="\n\nDu bekommst von uns unregelmäßig etwa alle 4–6 Wochen eine kurze Info zu Neuigkeiten und Tourterminen. Wenn du das nicht möchtest, antworte einfach mit STOPP – dann nehmen wir dich sofort aus der Liste.";
-const RN_VORLAGEN=[{titel:"Saisonstart",aktion:"Saisonstart 2027",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle aus Rietberg 🐔\nAb März sind wir wieder mit unseren Touren für dich unterwegs – mit Junghennen, Rassehühnern, Enten, Gänsen und mehr.\n\nDu kannst jetzt schon bequem vorbestellen und dir deine Tiere sichern: {link}"+RN_STOPP},{titel:"Erste Nachricht (neue Kontakte)",aktion:"Willkommen Liste",text:"Hallo {vorname}, hier ist Taulant von Geflügelverkauf Holle aus Rietberg 🐔\nIch habe deine Nummer noch von einem Hühnerkauf bzw. einer Anfrage bei uns gespeichert und möchte dich ab jetzt kurz informieren, wenn es Neuigkeiten gibt – z. B. neue Rassen, Tourtermine bei dir in der Nähe oder Angebote.\n\nBestellen kannst du jederzeit hier: {link}"+RN_STOPP},{titel:"Neue Tiere eingetroffen",aktion:"Neue Tiere",text:"Hallo {vorname}, frische Ware bei Geflügelverkauf Holle 🐔\nGerade sind neue Junghennen und Rassehühner eingetroffen – die beliebten Rassen sind oft schnell weg.\n\nSchau gleich rein und reservier dir deine Tiere: {link}"+RN_STOPP},{titel:"Tourtermine",aktion:"Tourtermine",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle 🐔\nDie nächsten Tourtermine stehen fest – wir kommen wieder an unsere Haltepunkte in deiner Nähe.\n\nAlle Termine und Vorbestellung: {link}\nBestellst du vorher, ist dein Wunschtier sicher dabei."+RN_STOPP},{titel:"Frühjahr / Ostern",aktion:"Frühjahr",text:"Hallo {vorname}, der Frühling ist da 🌷🐔\nJetzt ist die beste Zeit, deinen Hühnerstall aufzustocken – wir haben Junghennen in vielen Farben und Rassen dabei.\n\nHier vorbestellen: {link}"+RN_STOPP},{titel:"Restplätze / Angebot",aktion:"Angebot",text:"Hallo {vorname}, kurze Info von Geflügelverkauf Holle 🐔\nFür die nächste Tour haben wir noch einige Tiere frei. Wer jetzt bestellt, bekommt sie garantiert.\n\nVerfügbare Tiere ansehen: {link}"+RN_STOPP},{titel:"Saisonende / Danke",aktion:"Saisonende",text:"Hallo {vorname}, die Tour-Saison ist zu Ende – vielen Dank, dass du bei Geflügelverkauf Holle gekauft hast! 🐔❤️\nIm März geht es wieder los. Bis dahin erreichst du uns jederzeit per WhatsApp, Abholung in Rietberg nach Absprache.\n\nVorbestellungen für nächstes Jahr: {link}"+RN_STOPP}];
+const RN_VORLAGEN=[{titel:"Saisonstart",aktion:"Saisonstart 2027",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle aus Rietberg 🐔\nAb März sind wir wieder mit unseren Touren für dich unterwegs – mit Junghennen, Rassehühnern, Enten, Gänsen und mehr.\n\nDu kannst jetzt schon bequem vorbestellen und dir deine Tiere sichern: {link}"+RN_STOPP},{titel:"Erste Nachricht (neue Kontakte)",aktion:"Willkommen Liste",text:"Hallo {vorname}, hier ist Taulant von Geflügelverkauf Holle aus Rietberg 🐔\nIch habe deine Nummer noch von einem Hühnerkauf bzw. einer Anfrage bei uns gespeichert und möchte dich ab jetzt kurz informieren, wenn es Neuigkeiten gibt – z. B. neue Rassen, Tourtermine bei dir in der Nähe oder Angebote.\n\nBestellen kannst du jederzeit hier: {link}"+RN_STOPP},{titel:"Neue Tiere eingetroffen",aktion:"Neue Tiere",text:"Hallo {vorname}, frische Ware bei Geflügelverkauf Holle 🐔\nGerade sind neue Junghennen und Rassehühner eingetroffen – die beliebten Rassen sind oft schnell weg.\n\nSchau gleich rein und reservier dir deine Tiere: {link}"+RN_STOPP},{titel:"Tourtermine",aktion:"Tourtermine",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle 🐔\nDie nächsten Tourtermine stehen fest – wir kommen wieder an unsere Haltepunkte in deiner Nähe.\n\nAlle Termine und Vorbestellung: {link}\nBestellst du vorher, ist dein Wunschtier sicher dabei."+RN_STOPP},{titel:"Frühjahr / Ostern",aktion:"Frühjahr",text:"Hallo {vorname}, der Frühling ist da 🌷🐔\nJetzt ist die beste Zeit, deinen Hühnerstall aufzustocken – wir haben Junghennen in vielen Farben und Rassen dabei.\n\nHier vorbestellen: {link}"+RN_STOPP},{titel:"Restplätze / Angebot",aktion:"Angebot",text:"Hallo {vorname}, kurze Info von Geflügelverkauf Holle 🐔\nFür die nächste Tour haben wir noch einige Tiere frei. Wer jetzt bestellt, bekommt sie garantiert.\n\nVerfügbare Tiere ansehen: {link}"+RN_STOPP},{titel:"Mein Holle vorstellen",aktion:"Mein Holle",text:"Hallo {vorname}, hier ist Geflügelverkauf Holle 🐔\nNeu für unsere Kunden: In „Mein Holle“ siehst du deine Hühner, deine Stempelkarte, unseren Spruch der Woche und alle Neuigkeiten – ganz ohne Anmeldung:\n{meinholle}\n\nTipp: Öffnen → Teilen → „Zum Home-Bildschirm“, dann hast du es wie eine App."+RN_STOPP},{titel:"Saisonende / Danke",aktion:"Saisonende",text:"Hallo {vorname}, die Tour-Saison ist zu Ende – vielen Dank, dass du bei Geflügelverkauf Holle gekauft hast! 🐔❤️\nIm März geht es wieder los. Bis dahin erreichst du uns jederzeit per WhatsApp, Abholung in Rietberg nach Absprache.\n\nVorbestellungen für nächstes Jahr: {link}"+RN_STOPP}];
 const RN_STD=RN_VORLAGEN[0].text;
 function rnKey(){return "rn-"+($("#rn-name").value.trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g,"-").replace(/^-|-$/g,"")||"aktion")}
-function rnText(k){const v=vorname(k.name);return ($("#rn-text").value||RN_STD).replace(/ ?\{vorname\}/g,v?" "+v:"").replaceAll("{link}",appBase())}
+function rnText(k){const v=vorname(k.name);return ($("#rn-text").value||RN_STD).replace(/ ?\{vorname\}/g,v?" "+v:"").replaceAll("{link}",appBase()).replaceAll("{meinholle}",meinLink(k.key)||appBase())}
 $("#rn-vorlage").innerHTML+=RN_VORLAGEN.map((v,i)=>`<option value="${i}">${esc(v.titel)}</option>`).join("");
 $("#rn-vorlage").addEventListener("change",async()=>{const v=RN_VORLAGEN[+$("#rn-vorlage").value];if(!v)return;
   if($("#rn-text").value.trim()&&$("#rn-text").value!==v.text&&!confirm("Aktuellen Text durch die Vorlage ersetzen?")){$("#rn-vorlage").value="";return}
@@ -1278,6 +1281,7 @@ function renderRund(){
   oSel.innerHTML=`<option value="">Alle</option>`+orte.map(o=>`<option${o===oc?" selected":""}>${esc(o)}</option>`).join("");
   if(oSel.value) ks=ks.filter(k=>letzterOrt(k)===oSel.value);
   ks.sort((x,y)=>(ges[x.key]?1:0)-(ges[y.key]?1:0)||x.name.localeCompare(y.name,"de"));
+  if(($("#rn-text").value||"").includes("{meinholle}")) meinLinksLaden(ks.slice(0,400).map(k=>k.key),renderRund);
   $("#rn-info").textContent=`${ks.filter(k=>ges[k.key]).length} von ${ks.length} angeschrieben.`;
   box.innerHTML=ks.slice(0,400).map(k=>`<div class="kitem${ges[k.key]?" bezahlt":""}"><div class="kl"><b>${esc(k.name)}</b> <span class="sub">${esc(k.telefon)}${letzterOrt(k)?" · "+esc(letzterOrt(k)):k.kontaktNur?" · Kontakt":""}</span></div>
     <div class="kr"><a class="btn ${ges[k.key]?"ghost":"wa"}" target="_blank" rel="noopener" data-rn="${esc(k.key)}" href="https://wa.me/${esc(telKey(k.telefon))}?text=${encodeURIComponent(rnText(k))}">${ges[k.key]?"✓ Nochmal":"Senden"}</a>
@@ -1900,3 +1904,46 @@ async function igTeilen(){
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]});toast("Text ist kopiert – im Post einfügen")}catch(e){}}
   else{const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
 }
+
+/* ---------- Mein Holle: Links, News, Sprüche ---------- */
+var meinCache={}, meinLadend=false;
+function meinLink(key){return meinCache[key]?appBase()+"#/k/"+meinCache[key]:""}
+async function meinLinksLaden(keys,danach){
+  const fehlt=[...new Set(keys.filter(k=>k&&!meinCache[k]))]; if(!fehlt.length||meinLadend) return;
+  meinLadend=true;
+  try{for(let i=0;i<fehlt.length;i+=300){const {data,error}=await SB.rpc("mein_links",{p_keys:fehlt.slice(i,i+300)});if(error)throw error;Object.assign(meinCache,data||{})}}
+  catch(e){toast("Mein-Holle-Links konnten nicht geladen werden.")}
+  meinLadend=false; danach&&danach();
+}
+var newsBild=null;
+async function newsLaden(){
+  const [{data:ns},{data:ps},{data:sp},{data:jetzt}]=await Promise.all([
+    SB.from("news").select("*").order("erstellt",{ascending:false}).limit(30),
+    SB.rpc("push_status"), SB.from("sprueche").select("*").order("id"), SB.rpc("spruch_der_woche")]);
+  $("#nw-abos").textContent=ps?`${ps.abos} Kunden`:"–";
+  $("#nw-list").innerHTML=(ns||[]).map(n=>`<div class="kitem${n.sichtbar?"":" bezahlt"}"><div class="kl"><b>${esc(n.titel)}</b> <span class="sub">${esc(new Date(n.erstellt).toLocaleDateString("de-DE"))}${n.gepusht?" · 🔔 gesendet":""}${n.sichtbar?"":" · ausgeblendet"}</span>${n.text?`<div class="sub">${esc(n.text.slice(0,140))}${n.text.length>140?" …":""}</div>`:""}</div>
+    <div class="kr"><button class="btn ghost" type="button" data-nws="${n.id}">${n.sichtbar?"Ausblenden":"Einblenden"}</button><button class="btn ghost" type="button" data-nwx="${n.id}">Löschen</button></div></div>`).join("")||`<p class="empty">Noch keine News.</p>`;
+  $("#nw-list").querySelectorAll("[data-nws]").forEach(b=>b.onclick=async()=>{const n=ns.find(x=>x.id==b.dataset.nws);await SB.from("news").update({sichtbar:!n.sichtbar}).eq("id",n.id);newsLaden()});
+  $("#nw-list").querySelectorAll("[data-nwx]").forEach(b=>b.onclick=async()=>{if(!confirm("News löschen?"))return;await SB.from("news").delete().eq("id",b.dataset.nwx);newsLaden()});
+  $("#sp-jetzt").textContent=jetzt||"–";
+  $("#sp-list").innerHTML=(sp||[]).map(x=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="checkbox" data-spa="${x.id}"${x.aktiv?" checked":""} style="width:auto" title="aktiv"><input data-spt="${x.id}" value="${esc(x.text)}" style="flex:1"></div>`).join("");
+  $("#sp-list").querySelectorAll("[data-spa]").forEach(c=>c.onchange=async()=>{await SB.from("sprueche").update({aktiv:c.checked}).eq("id",c.dataset.spa);toast("Gespeichert")});
+  $("#sp-list").querySelectorAll("[data-spt]").forEach(i=>i.onchange=async()=>{const t=i.value.trim();if(!t)return;await SB.from("sprueche").update({text:t}).eq("id",i.dataset.spt);toast("Gespeichert")});
+  $("#sp-add").onclick=async()=>{const t=$("#sp-neu").value.trim();if(!t)return;const max=Math.max(0,...(sp||[]).map(x=>x.id));const {error}=await SB.from("sprueche").insert({id:max+1,text:t});if(error){toast(error.message);return}$("#sp-neu").value="";newsLaden()};
+}
+$("#nw-bild").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{newsBild=await bildVerkleinern(f,1400);$("#nw-bild-info").textContent="✓ Bild gewählt"}catch(x){toast("Bild konnte nicht gelesen werden.")}});
+$("#nw-go").onclick=async()=>{
+  const titel=$("#nw-titel").value.trim(), text=$("#nw-text").value.trim(), push=$("#nw-push").checked;
+  if(titel.length<3){toast("Bitte eine Überschrift eingeben.");return}
+  if(push&&!confirm(`„${titel}“ veröffentlichen und als Mitteilung an alle senden?`)) return;
+  $("#nw-go").disabled=true;
+  try{
+    let bild_url=null;
+    if(newsBild){const pfad=`news-${Date.now()}.jpg`;const {error}=await SB.storage.from("tierbilder").upload(pfad,newsBild,{contentType:"image/jpeg"});if(error)throw error;bild_url=SB.storage.from("tierbilder").getPublicUrl(pfad).data.publicUrl}
+    const {data,error}=await SB.from("news").insert({titel,text,bild_url}).select().single(); if(error) throw error;
+    if(push){const r=await SB.rpc("news_push",{p_id:data.id}); if(r.error) throw r.error}
+    $("#nw-titel").value="";$("#nw-text").value="";newsBild=null;$("#nw-bild-info").textContent="";
+    toast(push?"Veröffentlicht und Mitteilung gesendet":"Veröffentlicht"); newsLaden();
+  }catch(e){toast("Fehlgeschlagen: "+(e.message||e))}
+  $("#nw-go").disabled=false;
+};

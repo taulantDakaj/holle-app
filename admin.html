@@ -164,6 +164,7 @@
       <button type="button" data-seg="warte" aria-pressed="false">Warteliste <span class="n" id="wl-n" hidden>0</span></button>
       <button type="button" data-seg="rund" aria-pressed="false">Rundnachricht</button>
       <button type="button" data-seg="bewert" aria-pressed="false">Google-Bewertung <span class="n" id="bw-n" hidden>0</span></button>
+      <button type="button" data-seg="news" aria-pressed="false">App-News</button>
       <button type="button" data-seg="insta" aria-pressed="false">Instagram-Post</button>
     </div>
     <div id="seg-tour">
@@ -186,10 +187,29 @@
         <label>An wen<select id="rn-f"><option value="">Alle Kunden mit Handynummer</option><option value="best">Nur Kunden mit Bestellung</option><option value="kontakt">Nur importierte Kontakte</option><option value="stamm">Stammkunden (3+ Bestellungen)</option></select></label>
         <label>Haltepunkt<select id="rn-ort"><option value="">Alle</option></select></label>
       </div>
-      <label class="full">Text ({vorname} wird ersetzt, {link} = Bestell-App)<textarea id="rn-text" rows="6"></textarea></label>
+      <label class="full">Text ({vorname} wird ersetzt, {link} = Bestell-App, {meinholle} = persönlicher Mein-Holle-Link)<textarea id="rn-text" rows="6"></textarea></label>
       <p class="hint" id="rn-info"></p>
       <div id="rn-list"></div>
       <p class="hint">Bitte nur Kunden anschreiben, die schon bei dir gekauft haben oder Nachrichten von dir wollen. Wer „Stopp“ schreibt, im Kunden-Detail auf „Keine Rundnachrichten“ setzen.</p>
+    </div>
+    <div id="seg-news" hidden>
+      <p class="hint" style="margin-top:0">Was du hier schreibst, sehen Kunden in „Mein Holle“. Mit Haken geht es zusätzlich als Mitteilung aufs Handy – an alle, die das erlaubt haben (<b id="nw-abos">…</b>). Am besten höchstens 1–2× im Monat.</p>
+      <div class="grid">
+        <label>Überschrift<input id="nw-titel" maxlength="80" placeholder="z. B. Saisonstart am 27. Februar 🐔"></label>
+      </div>
+      <label class="full" style="margin-top:8px">Text<textarea id="nw-text" rows="4" maxlength="1000" placeholder="Kurz und herzlich – was gibt es Neues?"></textarea></label>
+      <div class="actions" style="margin:8px 0">
+        <label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">📷 Bild (optional)<input type="file" id="nw-bild" accept="image/*" hidden></label>
+        <span class="sub" id="nw-bild-info"></span>
+      </div>
+      <label style="flex-direction:row;gap:8px;align-items:center;display:flex"><input type="checkbox" id="nw-push" checked style="width:auto"> Auch als Mitteilung aufs Handy senden</label>
+      <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="nw-go">Veröffentlichen</button></div>
+      <div class="section-h">Veröffentlicht</div>
+      <div id="nw-list"></div>
+      <div class="section-h">Spruch der Woche</div>
+      <p class="hint" style="margin-top:0">Wechselt jeden Montag automatisch. Diese Woche: <b id="sp-jetzt">…</b></p>
+      <details><summary class="sub" style="cursor:pointer">Alle Sprüche ansehen und ändern</summary><div id="sp-list" style="margin-top:8px"></div>
+        <div class="actions" style="margin-top:8px"><input id="sp-neu" placeholder="Neuer Spruch …" style="flex:1"><button class="btn ghost" type="button" id="sp-add">Hinzufügen</button></div></details>
     </div>
     <div id="seg-insta" hidden>
       <div class="filters">

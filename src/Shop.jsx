@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, fmtDate, fmtPrice, todayISO, groupBy, SHOP_PHONE, SHOP_WA, DATENSCHUTZ_URL } from './lib.js';
 import { TOURS, ORT_KOORD } from './tours.js';
+import { meinToken, setMeinToken } from './MeinHolle.jsx';
 
 let plzCache = null;
 async function plzKoord(plz) {
@@ -40,13 +41,29 @@ export default function Shop() {
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);
+  const [offenKat, setOffenKat] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setErr('Die Bestellseite lädt gerade nicht. Bitte später nochmal versuchen oder per WhatsApp bestellen.'), 12000);
     supabase.rpc('get_shop_data').then(({ data, error }) => {
       clearTimeout(timer);
       if (error) setErr('Die Bestellseite lädt gerade nicht. Bitte per WhatsApp bestellen.');
-      else { setData(data); setErr(''); }
+      else {
+        setData(data); setErr('');
+        const q = new URLSearchParams(location.search), nach = q.get('nach');
+        if (nach) {
+          const id = nach.replace(/h$/, ''), p = (data.products || []).find((x) => String(x.id) === id);
+          if (p) {
+            let n = Math.max(1, Math.min(99, parseInt(q.get('n'), 10) || 1));
+            if (p.bestand != null) n = Math.min(n, p.bestand);
+            if (n > 0) setQty({ [nach]: n });
+            setOffenKat(p.category);
+          }
+          const o = q.get('ort');
+          if (o && termineAus(data.fahrten).some((t) => t.ort === o)) { setPickupType('tour'); setOrt(o); }
+          history.replaceState(null, '', location.pathname);
+        }
+      }
     });
     return () => clearTimeout(timer);
   }, []);
@@ -137,7 +154,7 @@ export default function Shop() {
           <section className="card">
             <h2><span className="num">1</span> Tiere auswählen</h2>
             {[...byCat.entries()].map(([cat, items], ci) => (
-              <details key={cat} className="cat" open={ci === 0}>
+              <details key={cat} className="cat" open={offenKat ? cat === offenKat : ci === 0}>
                 <summary>
                   {cat}
                   {catCount(items) > 0 && <span className="pill">{catCount(items)}</span>}
@@ -326,6 +343,7 @@ function Page({ children }) {
           <h1>Geflügelverkauf <em>Holle</em></h1>
           <p>Hühner, Enten &amp; mehr vorbestellen – Abholung am Haltepunkt oder in Rietberg</p>
         </div>
+        {meinToken() && <a className="mein-knopf" href="./#/mein">Mein Holle</a>}
       </header>
       <main>{children}</main>
       <footer>Geflügelverkauf Holle · 33397 Rietberg · @gefluegelholle</footer>
@@ -369,7 +387,8 @@ export function MeineBestellung({ id }) {
   const [grund, setGrund] = useState('');
   const [frage, setFrage] = useState(false);
   const laden = () => supabase.rpc('get_my_order', { p_id: id }).then(({ data, error }) => setO(error ? null : data));
-  useEffect(() => { laden(); }, [id]);
+  const [mein, setMein] = useState('');
+  useEffect(() => { laden(); supabase.rpc('mein_link_zur_bestellung', { p_id: id }).then(({ data }) => { if (data) { setMein(data); setMeinToken(data); } }); }, [id]);
   async function absagen() {
     setMsg('');
     const { error } = await supabase.rpc('cancel_my_order', { p_id: id, p_grund: grund });
@@ -404,6 +423,7 @@ export function MeineBestellung({ id }) {
           )}
           {!o.stornierbar && (o.status === 'neu' || o.status === 'offen') && <p className="hint">Am Abholtag bitte kurz anrufen ({SHOP_PHONE}) oder per WhatsApp absagen.</p>}
           {o.stempelkarte && <Stempelkarte k={o.stempelkarte} />}
+          {mein && <a className="btn primary" href={`./#/k/${mein}`}>🐔 Mein Holle öffnen – deine Hühner, News &amp; Stempel</a>}
           <a className="btn wa" href={`https://wa.me/${SHOP_WA}?text=${encodeURIComponent(`Hallo, Frage zu meiner Bestellung ${o.nr}: `)}`}>Frage per WhatsApp</a>
           <a className="btn ghost" href="./">Neue Bestellung</a>
         </div>
@@ -412,7 +432,7 @@ export function MeineBestellung({ id }) {
   );
 }
 
-function Stempelkarte({ k }) {
+export function Stempelkarte({ k }) {
   const voll = k.frei > 0;
   const an = voll && k.rest === 0 ? 10 : k.rest;
   return (
