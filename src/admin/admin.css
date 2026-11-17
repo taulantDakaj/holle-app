@@ -109,3 +109,4 @@ body.rolle-fahrer nav.tabs button:not([data-tab=fahrer]),body.rolle-fahrer #neuB
 .fz.erledigt .fz-tiere{font-size:.9rem}
 .fz-fuss{display:flex;gap:12px;align-items:center;margin-top:4px}
 .stop .fz:first-of-type{border-top:0}
+#form.blink{animation:blink 1.6s ease}@keyframes blink{0%,60%{box-shadow:0 0 0 3px #f0b429;border-radius:14px}100%{box-shadow:none}}

@@ -1003,3 +1003,19 @@ begin
 end $$;
 revoke all on function submit_order(jsonb) from public;
 grant execute on function submit_order(jsonb) to anon, authenticated;
+
+-- Rabatt auf der Kundenseite anzeigen
+create or replace function get_my_order(p_id text) returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'nr', upper(substr(id, 1, 6)),
+    'vorname', split_part(coalesce(data->>'kunde',''), ' ', 1),
+    'datum', data->>'datum', 'tour', data->>'tour', 'ort', data->>'ort',
+    'positionen', coalesce(data->'positionen', '[]'::jsonb),
+    'rabatt', data->'rabatt',
+    'status', data->>'status',
+    'bezahlt', data ? 'zahlung',
+    'stornierbar', (data->>'status') in ('neu','offen') and not (data ? 'zahlung') and (data->>'datum')::date > current_date,
+    'stempelkarte', stempel_fuer(tel_key(data->>'telefon')))
+  from bb_docs where coll = 'orders' and id = p_id and length(p_id) >= 16;
+$$;

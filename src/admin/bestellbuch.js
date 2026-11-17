@@ -75,7 +75,12 @@ const dLong=s=>s?new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"long"
 const dShort=s=>s?new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit"}):"";
 function stopIdx(o){const t=tourById(o.tour);return t?Math.max(0,t.stops.findIndex(s=>s[1]===o.ort)):99}
 const stueck=o=>(o.positionen||[]).reduce((a,p)=>a+(+p.anzahl||0),0);
-const betrag=o=>(o.positionen||[]).reduce((a,p)=>a+(+p.anzahl||0)*(+p.preis||0),0);
+const brutto=o=>(o.positionen||[]).reduce((a,p)=>a+(+p.anzahl||0)*(+p.preis||0),0);
+// Rabatt: {art:"prozent"|"euro", wert}
+function rabattEur(o){const r=o&&o.rabatt, b=brutto(o); if(!r||!(+r.wert>0)||!b) return 0;
+  return Math.min(b, r.art==="prozent"?Math.round(b*(+r.wert)/100*100)/100:+r.wert)}
+const rabattText=o=>{const r=o&&o.rabatt;if(!rabattEur(o))return"";return r.art==="prozent"?`${String(+r.wert).replace(".",",")} % Rabatt`:"Rabatt"};
+const betrag=o=>Math.max(0,brutto(o)-rabattEur(o));
 const tierText=(o,sep)=>(o.positionen||[]).filter(p=>p.tier&&+p.anzahl).map(p=>`${p.anzahl} × ${p.tier}`).join(sep);
 function rhythmInfo(dateStr){
   if(!dateStr) return "";
@@ -162,7 +167,11 @@ function addPos(p={}){
   $("#posList").appendChild(div);
 }
 function readPos(){return [...document.querySelectorAll(".pos")].map(d=>({tier:canonTier(d.querySelector(".p-tier").value.trim()),anzahl:parseInt(d.querySelector(".p-anz").value)||0,preis:d.querySelector(".p-preis").value===""?null:parseFloat(d.querySelector(".p-preis").value)})).filter(p=>p.tier&&p.anzahl>0)}
-function calcTotal(){const o={positionen:readPos()};const n=stueck(o),b=betrag(o);$("#f-total").textContent=n?`${n} Tiere${b?" · "+eur(b):""}`:""}
+function readRabatt(){const art=$("#f-rabatt-art").value,w=parseFloat(String($("#f-rabatt").value).replace(",","."));return art&&w>0?{art,wert:w}:null}
+function calcTotal(){const o={positionen:readPos(),rabatt:readRabatt()};const n=stueck(o),b=betrag(o),r=rabattEur(o);
+  $("#f-total").textContent=n?`${n} Tiere${b||r?" · "+(r?eur(brutto(o))+" − "+eur(r)+" = ":"")+eur(b):""}`:"";
+  $("#f-rabatt").disabled=!$("#f-rabatt-art").value;$("#f-rabatt").placeholder=$("#f-rabatt-art").value==="prozent"?"z. B. 5":$("#f-rabatt-art").value==="euro"?"z. B. 10":"–"}
+$("#f-rabatt-art").addEventListener("change",()=>{if(!$("#f-rabatt-art").value)$("#f-rabatt").value="";calcTotal()});$("#f-rabatt").addEventListener("input",calcTotal);
 $("#addPos").onclick=()=>addPos();
 function resetForm(){
   editId=null;$("#form").reset();$("#f-status").value="offen";$("#posList").innerHTML="";addPos();addPos();
@@ -177,13 +186,14 @@ function editOrder(id){
   $("#f-kunde").value=o.kunde||"";$("#f-tel").value=o.telefon||"";$("#f-wohnort").value=o.wohnort||"";
   $("#f-datum").value=o.datum||"";fTour.value=o.tour;fillOrte(o.ort);$("#f-adresse").value=o.adresse||"";$("#f-status").value=o.status||"offen";$("#f-bem").value=o.bemerkung||"";
   $("#posList").innerHTML="";(o.positionen&&o.positionen.length?o.positionen:[{}]).forEach(addPos);
+  $("#f-rabatt-art").value=o.rabatt&&o.rabatt.art||"";$("#f-rabatt").value=o.rabatt&&o.rabatt.wert?String(o.rabatt.wert).replace(".",","):"";
   $("#f-rhythm").innerHTML=rhythmInfo(o.datum);
   $("#formTitle").textContent="Bestellung bearbeiten: "+(o.kunde||"");$("#saveBtn").textContent="Änderungen speichern";
   $("#delWrap").innerHTML=`<button type="button" class="btn warn" id="delBtn">Löschen</button>`;
   $("#delBtn").onclick=()=>{$("#delWrap").innerHTML=`<span class="confirm">Wirklich löschen? <button type="button" class="btn warn" id="delYes">Ja, löschen</button><button type="button" class="btn ghost" id="delNo">Nein</button></span>`;
     $("#delYes").onclick=async()=>{try{await deleteOrder(id);toast("Bestellung gelöscht");resetForm()}catch(e){toast("Löschen fehlgeschlagen. Bitte erneut versuchen.")}};
     $("#delNo").onclick=()=>editOrder(id)};
-  calcTotal();showTab("neu");window.scrollTo({top:0,behavior:"smooth"});
+  calcTotal();showTab("neu");setTimeout(()=>{const f=$("#form");f.scrollIntoView({behavior:"smooth",block:"start"});f.classList.add("blink");setTimeout(()=>f.classList.remove("blink"),1600)},30);
 }
 $("#f-kunde").addEventListener("change",()=>{
   if(editId)return;const k=$("#f-kunde").value.trim().toLowerCase();
@@ -196,9 +206,11 @@ $("#form").addEventListener("submit",async e=>{
   const pos=readPos();
   if(!pos.length){toast("Bitte mindestens eine Tierart mit Anzahl eintragen.");return}
   const now=new Date().toISOString(), old=editId?orders.find(o=>o.id===editId):null;
-  const o={kunde:$("#f-kunde").value.trim(),telefon:$("#f-tel").value.trim(),wohnort:$("#f-wohnort").value.trim(),
+  const {id:_oid,...alt}=old||{};
+  const o={...alt,kunde:$("#f-kunde").value.trim(),telefon:$("#f-tel").value.trim(),wohnort:$("#f-wohnort").value.trim(),
     datum:$("#f-datum").value,tour:fTour.value,ort:fOrt.value,adresse:fOrt.value===HOME?$("#f-adresse").value.trim():"",positionen:pos,status:$("#f-status").value,
     bemerkung:$("#f-bem").value.trim(),created:old?.created||now,updated:now};
+  const rb=readRabatt(); if(rb) o.rabatt=rb; else delete o.rabatt;
   if(old?.beispiel) o.beispiel=true;if(old?.quelle) o.quelle=old.quelle;
   $("#saveBtn").disabled=true;
   try{await saveOrder(editId,o);lastDate=o.datum;lastTour=o.tour;lastOrt=o.ort;toast(editId?"Änderungen gespeichert":`Gespeichert: ${o.kunde}, ${stueck(o)} Tiere`);resetForm()}
@@ -710,7 +722,8 @@ function bestaetigungText(o){
   const pos=(o.positionen||[]).filter(p=>p.tier&&+p.anzahl);
   const ohne=pos.some(p=>p.preis==null||p.preis===""), summe=betrag(o);
   const zeile=p=>`• ${p.anzahl} × ${p.tier}`+(p.preis!=null&&p.preis!==""?` à ${eur(+p.preis)} = ${eur(+p.anzahl*+p.preis)}`:preisInfo(p)?` (${preisInfo(p)})`:" (Preis folgt)");
-  const gesamt=summe?`\n\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Wochenpreis/Preis folgt":""}`:"";
+  const rb=rabattEur(o);
+  const gesamt=summe?`${rb?`\n\nZwischensumme: ${eur(brutto(o))}\n${rabattText(o)}: − ${eur(rb)}`:"\n"}\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Wochenpreis/Preis folgt":""}`:"";
   return `Hallo ${vn}, deine Bestellung bei Geflügelverkauf Holle ist bestätigt:\n`+
     pos.map(zeile).join("\n")+gesamt+
     `\n\nAbholung: ${abholText(o)}\nBezahlung bei Abholung (bar, PayPal oder Überweisung).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.`+
@@ -1444,6 +1457,7 @@ async function quittung(id){
     y+=7;
   });
   d.line(L,y-3,R,y-3);y+=4;
+  if(rabattEur(o)){d.text("Zwischensumme",L,y);d.text(eur(brutto(o)),R,y,{align:"right"});y+=6;d.text(rabattText(o),L,y);d.text("− "+eur(rabattEur(o)),R,y,{align:"right"});y+=8}
   const summe=z.betrag!=null?+z.betrag:betrag(o);
   d.setFont("helvetica","bold");d.setFontSize(12);d.text("Gesamtbetrag",L,y);d.text(eur(summe),R,y,{align:"right"});
   d.setFont("helvetica","normal");d.setFontSize(10);y+=8;

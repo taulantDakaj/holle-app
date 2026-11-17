@@ -415,7 +415,9 @@ export function MeineBestellung({ id }) {
   const t = o && TOURS.find((x) => x.id === o.tour);
   const st = t && t.stops.find((s) => s[1] === o.ort);
   const pos = (o?.positionen || []).filter((p) => p.tier && +p.anzahl);
-  const summe = pos.reduce((a, p) => a + (+p.anzahl || 0) * (+p.preis || 0), 0);
+  const brutto = pos.reduce((a, p) => a + (+p.anzahl || 0) * (+p.preis || 0), 0);
+  const rb = o?.rabatt && +o.rabatt.wert > 0 && brutto ? Math.min(brutto, o.rabatt.art === 'prozent' ? Math.round(brutto * o.rabatt.wert) / 100 : +o.rabatt.wert) : 0;
+  const summe = brutto - rb;
   return (
     <Page>
       {o === undefined && <div className="card">Lade Bestellung …</div>}
@@ -426,6 +428,7 @@ export function MeineBestellung({ id }) {
           <p className={'status s-' + o.status}>{STATUS_TEXT[o.status] || o.status}</p>
           <p><b>Abholung:</b> {o.tour === 'R' ? 'Rietberg' : o.ort}, {fmtDate(o.datum)}{st && st[0] ? `, ${st[0]} Uhr` : ''}</p>
           <ul className="poslist">{pos.map((p, i) => <li key={i}>{p.anzahl} × {p.tier}{p.preis ? ` à ${fmtPrice(p.preis)}` : p.preis_info ? ` (${p.preis_info})` : ''}</li>)}</ul>
+          {rb > 0 && <p>Zwischensumme {fmtPrice(brutto)} · {o.rabatt.art === 'prozent' ? `${String(o.rabatt.wert).replace('.', ',')} % Rabatt` : 'Rabatt'}: −{fmtPrice(rb)}</p>}
           {summe > 0 && <p><b>Gesamt: {fmtPrice(summe)}</b>{pos.some((p) => p.preis_info) ? ' zzgl. Tiere mit Wochenpreis' : ''} · Bezahlung bei Abholung</p>}
           {pos.some((p) => p.preis_info) && <p className="hint">Bei Tieren mit Wochenpreis richtet sich der Preis nach dem Alter am Abholtag.</p>}
           {msg && <div className="alert">{msg}</div>}
