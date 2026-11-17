@@ -294,3 +294,7 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 .hint.center { text-align: center; }
 .linkbtn { background: none; border: 0; color: #b3121f; font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
 .code { font-size: 1.1rem; letter-spacing: .08em; background: #fff4ef; padding: .1rem .4rem; border-radius: 6px; }
+
+.grosserhahn { display: block; background: #fbf6f2; border-radius: 12px; padding: .8rem; margin-top: .4rem; }
+.ghzeile { display: grid; gap: .4rem; margin-top: .6rem; }
+.ghzeile select { width: 100%; padding: .55rem .6rem; border: 1px solid #ddd; border-radius: 10px; font: inherit; background: #fff; }

@@ -903,3 +903,103 @@ language sql stable set search_path = public as $$
       where k = lower((select n from b))), (select n from b)) as n)
   select id from products where lower(name) = lower((select n from m)) limit 1;
 $$;
+-- ---------- Hybrid: „Großer Hahn“ mit Wunschsorte (je 2 € unter der Henne) ----------
+update products set price_hahn = null, price_hahn_bis = null where category = 'Hybrid-Legehennen';
+update products set price = 7.50 where name = 'Wachtelhennen';
+insert into products (category, name, price, price_note, note, available, sort, beschreibung)
+values ('Hybrid-Legehennen', 'Großer Hahn (Hybrid)', null, 'je 2 € günstiger als die Henne der Wunschsorte',
+        'Nicht von jeder Sorte verfügbar – Wunschsorte angeben', true, 999,
+        'Ausgewachsener Hybrid-Hahn als Beschützer für deine Hennen. Nicht von jeder Sorte verfügbar – gib deine Wunschsorte an, wir richten uns danach. Preis: je 2 € günstiger als die Henne der Sorte.')
+on conflict (name) do update set price_note = excluded.price_note, note = excluded.note, available = true;
+
+create or replace function submit_order(p jsonb) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  v_kunde text := left(trim(coalesce(p->>'kunde','')), 100);
+  v_tel   text := left(trim(coalesce(p->>'telefon','')), 30);
+  v_wohn  text := left(trim(coalesce(p->>'wohnort','')), 100);
+  v_bem   text := left(trim(coalesce(p->>'bemerkung','')), 1000);
+  v_tour  text := coalesce(p->>'tour','');
+  v_ort   text := left(trim(coalesce(p->>'ort','')), 100);
+  v_datum date := nullif(p->>'datum','')::date;
+  v_items jsonb := coalesce(p->'items','[]'::jsonb);
+  v_pos   jsonb := '[]'::jsonb;
+  v_item  jsonb;
+  v_prod  products%rowtype;
+  v_wunsch products%rowtype;
+  v_qty   int;
+  v_hahn  boolean;
+  v_grhahn int := 0;
+  v_hennen int := 0;
+  v_id    text := substr(md5(random()::text || clock_timestamp()::text), 1, 20);
+  v_now   text := to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+begin
+  if length(v_kunde) < 2 then raise exception 'Bitte Namen angeben.'; end if;
+  if length(regexp_replace(v_tel, '[^0-9]', '', 'g')) < 6 then raise exception 'Bitte gültige Handynummer angeben.'; end if;
+  if v_datum is null or v_datum < current_date then raise exception 'Bitte einen gültigen Termin wählen.'; end if;
+  if v_tour = 'R' then
+    v_ort := 'Rietberg Hof';
+  elsif v_tour in ('T1','T2','T3','T4','T5','T6') then
+    if not exists (select 1 from fahrten where datum = v_datum and tour = v_tour and aktiv) then
+      raise exception 'Für diesen Termin gibt es keine Tour mehr. Bitte neu auswählen.'; end if;
+    if length(v_ort) < 2 then raise exception 'Bitte einen Haltepunkt wählen.'; end if;
+  else
+    raise exception 'Ungültige Tour.';
+  end if;
+  if jsonb_typeof(v_items) <> 'array' or jsonb_array_length(v_items) = 0 or jsonb_array_length(v_items) > 40 then
+    raise exception 'Bitte mindestens ein Tier auswählen.'; end if;
+
+  if (select count(*) from bb_docs where coll = 'orders' and data->>'telefon' = v_tel
+        and data->>'quelle' = 'kunde' and (data->>'created') > to_char(now() - interval '1 day', 'YYYY-MM-DD"T"HH24:MI:SS')) >= 5 then
+    raise exception 'Zu viele Bestellungen mit dieser Nummer. Bitte ruf uns kurz an.'; end if;
+
+  for v_item in select * from jsonb_array_elements(v_items) loop
+    v_qty := (v_item->>'qty')::int;
+    v_hahn := coalesce((v_item->>'hahn')::boolean, false);
+    if v_qty is null or v_qty < 1 or v_qty > 1000 then raise exception 'Ungültige Anzahl.'; end if;
+    select * into v_prod from products where id = (v_item->>'product_id')::bigint and available for update;
+    if not found then raise exception 'Ein ausgewähltes Tier ist nicht mehr verfügbar.'; end if;
+    if v_prod.bestand is not null then
+      if v_qty > v_prod.bestand then
+        raise exception 'Von % sind nur noch % Stück verfügbar.', v_prod.name, v_prod.bestand; end if;
+      update products set bestand = bestand - v_qty where id = v_prod.id;
+    end if;
+
+    if v_prod.name = 'Großer Hahn (Hybrid)' then
+      select * into v_wunsch from products where id = nullif(v_item->>'wunsch_id','')::bigint
+        and category = 'Hybrid-Legehennen' and name <> 'Großer Hahn (Hybrid)' and available;
+      if not found then raise exception 'Bitte eine Wunschsorte für den großen Hahn wählen.'; end if;
+      v_grhahn := v_grhahn + v_qty;
+      v_pos := v_pos || jsonb_build_array(jsonb_build_object(
+        'tier', 'Großer Hahn (Wunsch: ' || v_wunsch.name || ')',
+        'anzahl', v_qty,
+        'preis', case when v_wunsch.price is not null and v_wunsch.price_bis is null then greatest(v_wunsch.price - 2, 0) end));
+      continue;
+    end if;
+
+    if v_hahn and v_prod.price_hahn is null then raise exception 'Für % gibt es keine Hähne.', v_prod.name; end if;
+    if not v_hahn then v_hennen := v_hennen + v_qty; end if;
+    v_pos := v_pos || jsonb_build_array(jsonb_build_object(
+      'tier', v_prod.name || case when v_hahn then ' Hahn' else '' end,
+      'anzahl', v_qty,
+      'preis', case when v_hahn then (case when v_prod.price_hahn_bis is null then v_prod.price_hahn end)
+                       else (case when v_prod.price_bis is null then v_prod.price end) end,
+      'preis_info', case when v_hahn and v_prod.price_hahn_bis is not null then replace(eur_txt(v_prod.price_hahn), ' €', '') || '–' || eur_txt(v_prod.price_hahn_bis) || ' je nach Alter'
+                         when not v_hahn and v_prod.price_bis is not null then replace(eur_txt(v_prod.price), ' €', '') || '–' || eur_txt(v_prod.price_bis) || ' je nach Alter' end));
+  end loop;
+
+  if v_grhahn > 0 and v_hennen = 0 then
+    raise exception 'Den großen Hahn gibt es nur zusätzlich zu Hennen. Bitte wähle auch Hennen aus.'; end if;
+
+  perform set_config('holle.bestand_fertig', '1', true);
+  insert into bb_docs (coll, id, data) values ('orders', v_id, jsonb_build_object(
+    'kunde', v_kunde, 'telefon', v_tel, 'wohnort', v_wohn, 'adresse', '',
+    'datum', v_datum, 'tour', v_tour, 'ort', v_ort, 'positionen', v_pos,
+    'status', 'neu', 'quelle', 'kunde', 'bemerkung', v_bem,
+    'created', v_now, 'updated', v_now));
+
+  perform set_config('holle.bestand_fertig', '', true);
+  return json_build_object('nr', upper(substr(v_id, 1, 6)), 'datum', v_datum, 'id', v_id);
+end $$;
+revoke all on function submit_order(jsonb) from public;
+grant execute on function submit_order(jsonb) to anon, authenticated;

@@ -29,6 +29,8 @@ function termineAus(fahrten) {
   return out;
 }
 
+const GH = 'Großer Hahn (Hybrid)';
+
 export default function Shop() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
@@ -42,6 +44,7 @@ export default function Shop() {
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);
   const [offenKat, setOffenKat] = useState(null);
+  const [hahnRows, setHahnRows] = useState([{ sorte: '', n: 0 }]);
 
   useEffect(() => {
     const timer = setTimeout(() => setErr('Die Bestellseite lädt gerade nicht. Bitte später nochmal versuchen oder per WhatsApp bestellen.'), 12000);
@@ -75,12 +78,21 @@ export default function Shop() {
   const termin = ortTermine.find((t) => t.datum + t.tour === terminKey);
   // Auswahl: Schlüssel "12" = Henne/Stück, "12h" = Hahn
   const chosen = [];
+  const ghProd = (data?.products || []).find((p) => p.name === GH);
+  const hybriden = (data?.products || []).filter((p) => p.category === 'Hybrid-Legehennen' && p.name !== GH && p.price);
   for (const p of data?.products || []) {
+    if (p.name === GH) continue;
     if (qty[p.id] > 0) chosen.push({ p, key: String(p.id), hahn: false, n: qty[p.id], label: p.name });
     if (qty[p.id + 'h'] > 0) chosen.push({ p, key: p.id + 'h', hahn: true, n: qty[p.id + 'h'], label: p.name + ' (Hahn)' });
   }
+  const hennen = chosen.reduce((s, c) => s + (c.hahn ? 0 : c.n), 0);
+  if (ghProd) for (const r of hahnRows) if (r.n > 0) {
+    const w = hybriden.find((h) => String(h.id) === r.sorte);
+    chosen.push({ p: ghProd, key: 'gh' + r.sorte, hahn: false, n: r.n, wunsch: w ? w.id : null, label: `Großer Hahn (Wunsch: ${w ? w.name : '–'})` });
+  }
+  const ghAnzahl = hahnRows.reduce((s, r) => s + (r.n || 0), 0);
   const total = chosen.reduce((s, c) => s + c.n, 0);
-  const catCount = (items) => items.reduce((s, p) => s + (qty[p.id] || 0) + (qty[p.id + 'h'] || 0), 0);
+  const catCount = (items) => items.reduce((s, p) => s + (qty[p.id] || 0) + (qty[p.id + 'h'] || 0), 0) + (items.some((p) => p.name === GH) ? ghAnzahl : 0);
 
   const [zoom, setZoom] = useState(null);
   const setQ = (id, v, p) => setQty((q) => {
@@ -98,6 +110,8 @@ export default function Shop() {
     setErr('');
     if (form.website) return; // Bot
     if (!chosen.length) return setErr('Bitte wähle mindestens ein Tier aus.');
+    if (ghAnzahl > 0 && hahnRows.some((r) => r.n > 0 && !r.sorte)) return setErr('Bitte wähle für den großen Hahn eine Wunschsorte.');
+    if (ghAnzahl > 0 && hennen === 0) return setErr('Den großen Hahn gibt es nur zusätzlich zu Hennen – bitte wähle auch Hennen aus.');
     if (pickupType === 'tour' && !termin) return setErr('Bitte wähle Haltepunkt und Termin.');
     if (pickupType === 'rietberg' && !pickupDate) return setErr('Bitte gib deinen Wunschtermin an.');
     if (!consent) return setErr('Bitte bestätige die Datenschutzhinweise.');
@@ -110,7 +124,7 @@ export default function Shop() {
       datum: pickupType === 'tour' ? termin.datum : pickupDate,
       tour: pickupType === 'tour' ? termin.tour : 'R',
       ort: pickupType === 'tour' ? termin.ort : 'Rietberg Hof',
-      items: chosen.map((c) => ({ product_id: c.p.id, qty: c.n, hahn: c.hahn })),
+      items: chosen.map((c) => ({ product_id: c.p.id, qty: c.n, hahn: c.hahn, ...(c.wunsch ? { wunsch_id: c.wunsch } : {}) })),
     };
     const { data: res, error } = await supabase.rpc('submit_order', { p: payload });
     setSending(false);
@@ -159,7 +173,7 @@ export default function Shop() {
                   {cat}
                   {catCount(items) > 0 && <span className="pill">{catCount(items)}</span>}
                 </summary>
-                {items.map((p) => (
+                {items.filter((p) => p.name !== GH).map((p) => (
                   <div className="prod" key={p.id}>
                     <div className={'pinfo' + (p.bild_url ? ' mitbild' : '')}>
                       {p.bild_url && <button type="button" className="pbild" onClick={() => setZoom(p)} aria-label={`Bild von ${p.name} ansehen`}><img src={p.bild_url} alt={p.name} loading="lazy" /></button>}
@@ -182,6 +196,9 @@ export default function Shop() {
                     </div>}
                   </div>
                 ))}
+                {items.some((p) => p.name === GH) && (
+                  <GrosserHahn p={items.find((p) => p.name === GH)} hybriden={hybriden} rows={hahnRows} setRows={setHahnRows} />
+                )}
               </details>
             ))}
           </section>
@@ -458,4 +475,29 @@ export function Stempelkarte({ k }) {
 function spanne(von, bis) {
   if (!bis || Number(bis) === Number(von)) return fmtPrice(von);
   return fmtPrice(von).replace(/\s*€$/, '') + '–' + fmtPrice(bis);
+}
+
+function GrosserHahn({ p, hybriden, rows, setRows }) {
+  const set = (i, f) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...f } : r)));
+  const preis = (id) => { const h = hybriden.find((x) => String(x.id) === id); return h ? fmtPrice(Math.max(0, h.price - 2)) : ''; };
+  return (
+    <div className="prod grosserhahn">
+      <div className="pinfo">
+        <div className="pname">🐓 Großer Hahn dazu</div>
+        <div className="pmeta">Nur zusätzlich zu Hennen · nicht von jeder Sorte verfügbar – wähle deine Wunschsorte. Je 2 € günstiger als die Henne der Sorte.</div>
+      </div>
+      {p.bestand === 0 ? <div className="pstock out">gerade keine Hähne</div> : rows.map((r, i) => (
+        <div key={i} className="ghzeile">
+          <select value={r.sorte} onChange={(e) => set(i, { sorte: e.target.value, n: r.n || 1 })}>
+            <option value="">Wunschsorte wählen …</option>
+            {hybriden.map((h) => <option key={h.id} value={h.id}>{h.name} – Hahn {fmtPrice(Math.max(0, h.price - 2))}</option>)}
+          </select>
+          <Variant label="Hahn" price={preis(r.sorte)} value={r.n} onChange={(v) => set(i, { n: Math.max(0, Math.min(20, v || 0)) })} />
+        </div>
+      ))}
+      {p.bestand !== 0 && rows.length < 4 && rows[rows.length - 1].sorte && (
+        <button type="button" className="linkbtn" onClick={() => setRows((rs) => [...rs, { sorte: '', n: 0 }])}>+ Hahn einer weiteren Sorte</button>
+      )}
+    </div>
+  );
 }

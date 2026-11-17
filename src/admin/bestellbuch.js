@@ -766,7 +766,9 @@ async function loadProducts(){
   products=data||[];
   products.forEach(p=>{
     if(p.price!=null&&p.price_bis==null) PREIS_VORSCHLAG[p.name]=+p.price; else delete PREIS_VORSCHLAG[p.name];
-    if(p.price_hahn!=null&&p.price_hahn_bis==null) PREIS_VORSCHLAG[p.name+" Hahn"]=+p.price_hahn; else delete PREIS_VORSCHLAG[p.name+" Hahn"];
+    if(p.price_hahn!=null&&p.price_hahn_bis==null) PREIS_VORSCHLAG[p.name+" Hahn"]=+p.price_hahn;
+    else if(p.category==="Hybrid-Legehennen"&&p.price!=null&&p.price_bis==null&&p.name!=="Großer Hahn (Hybrid)") PREIS_VORSCHLAG[p.name+" Hahn"]=Math.max(0,p.price-2); // großer Hahn: 2 € unter der Henne
+    else delete PREIS_VORSCHLAG[p.name+" Hahn"];
     if(!TIERE.includes(p.name)) TIERE.push(p.name);
     if(p.price_hahn!=null&&!TIERE.includes(p.name+" Hahn")) TIERE.push(p.name+" Hahn");
   });
