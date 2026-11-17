@@ -128,9 +128,10 @@
   <section id="tab-kunden" class="panel" hidden>
     <div class="filters">
       <label>Suche<input id="k-q" placeholder="Name, Telefon, Ort"></label>
-      <label>Anzeigen<select id="k-f"><option value="">Alle Kunden</option><option value="karte">Nur mit Stempelkarte</option><option value="gratis">Gratis-Huhn fällig</option><option value="stamm">Stammkunden (3+ Bestellungen)</option><option value="kontakt">Kontakte ohne Bestellung</option></select></label>
+      <label>Anzeigen<select id="k-f"><option value="">Alle Kunden</option><option value="karte">Nur mit Stempelkarte</option><option value="gratis">Gratis-Huhn fällig</option><option value="stamm">Stammkunden (3+ Bestellungen)</option><option value="kontakt">Kontakte ohne Bestellung</option><option value="interessent">Interessenten</option></select></label>
     </div>
     <div class="actions" style="margin:0 0 10px">
+      <button class="btn" type="button" id="in-open">➕ Interessent speichern</button>
       <label class="btn ghost" style="flex-direction:row;color:var(--accent);cursor:pointer">📇 Kontakte vom Handy importieren<input type="file" id="ki-file" accept=".vcf,text/vcard,text/x-vcard" hidden></label>
     </div>
     <div class="kpis" id="k-kpis"></div>
@@ -186,7 +187,7 @@
       <div class="filters">
         <label>Vorlage<select id="rn-vorlage"><option value="">– Vorlage wählen –</option></select></label>
         <label>Aktion<input id="rn-name" value="Saisonstart 2027"></label>
-        <label>An wen<select id="rn-f"><option value="">Alle Kunden mit Handynummer</option><option value="best">Nur Kunden mit Bestellung</option><option value="kontakt">Nur importierte Kontakte</option><option value="stamm">Stammkunden (3+ Bestellungen)</option></select></label>
+        <label>An wen<select id="rn-f"><option value="">Alle Kunden mit Handynummer</option><option value="best">Nur Kunden mit Bestellung</option><option value="interessent">Nur Interessenten</option><option value="kontakt">Nur importierte Kontakte</option><option value="stamm">Stammkunden (3+ Bestellungen)</option></select></label>
         <label>Haltepunkt<select id="rn-ort"><option value="">Alle</option></select></label>
       </div>
       <label class="full">Text ({vorname} wird ersetzt, {link} = Bestell-App, {meinholle} = persönlicher Mein-Holle-Link)<textarea id="rn-text" rows="6"></textarea></label>
@@ -411,6 +412,19 @@
 <datalist id="dl-tiere"></datalist>
 <datalist id="dl-kunden"></datalist>
 <div id="toast" class="toast" hidden></div>
+<div id="inDlg" class="carddlg" hidden><div class="cardbox" style="max-width:480px;text-align:left">
+  <h3>Interessent speichern</h3>
+  <p class="hint" style="margin-top:0">Für Leute, die anfragen, aber noch nicht bestellen. Sie landen in der Kundenkartei und können Rundnachrichten bekommen.</p>
+  <div class="grid">
+    <label>Name<input id="in-name" autocomplete="off" placeholder="z. B. Petra Schulz"></label>
+    <label>Handynummer<input id="in-tel" type="tel" inputmode="tel" autocomplete="off" placeholder="0151 …"></label>
+    <label>Wohnort / PLZ<input id="in-wohn" autocomplete="off"></label>
+    <label>Wunsch-Haltepunkt<input id="in-ort" list="dl-orte" autocomplete="off" placeholder="optional"></label>
+    <label style="grid-column:1/-1">Interessiert an<textarea id="in-int" placeholder="z. B. 5 Sussex im März, will vorher Preise wissen"></textarea></label>
+  </div>
+  <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="in-go">Speichern</button><button class="btn ghost" type="button" id="in-close">Abbrechen</button></div>
+</div></div>
+<datalist id="dl-orte"></datalist>
 <div id="kiDlg" class="carddlg" hidden><div class="cardbox" style="max-width:560px">
   <h3>Kontakte importieren</h3>
   <p class="hint" style="margin-top:0">Nimm Familie, Freunde und andere Privatkontakte raus. Nur Kontakte mit Häkchen kommen in die Kundenkartei.</p>

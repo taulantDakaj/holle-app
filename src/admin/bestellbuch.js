@@ -959,9 +959,10 @@ function renderKunden(){
   if(f==="gratis") ks=ks.filter(k=>k.frei>0);
   if(f==="stamm") ks=ks.filter(k=>k.anzahl>=3);
   if(f==="kontakt") ks=ks.filter(k=>k.kontaktNur);
+  if(f==="interessent") ks=ks.filter(k=>k.info.interessent);
   ks.sort((a,b)=>b.frei-a.frei||(b.letzte||"").localeCompare(a.letzte||"")||a.name.localeCompare(b.name,"de"));
   tb.innerHTML=`<thead><tr><th>Kunde</th><th class="num">Bestellungen</th><th class="num">Tiere</th><th class="num">Umsatz</th><th>Zuletzt</th><th>Stempelkarte</th></tr></thead><tbody>`+
-    (ks.length?ks.slice(0,300).map(k=>`<tr class="row" data-k="${esc(k.key)}" tabindex="0"><td><b>${esc(k.name)}</b><br><span class="sub">${esc(k.telefon)}${k.wohnort?" · "+esc(k.wohnort):""}</span></td>
+    (ks.length?ks.slice(0,300).map(k=>`<tr class="row" data-k="${esc(k.key)}" tabindex="0"><td><b>${esc(k.name)}</b>${k.info.interessent&&!k.anzahl?' <span class="chip neu">Interessent</span>':""}<br><span class="sub">${esc(k.telefon)}${k.wohnort?" · "+esc(k.wohnort):""}</span>${k.info.interesse?`<br><span class="sub">💡 ${esc(k.info.interesse)}</span>`:""}</td>
       <td class="num">${k.anzahl}</td><td class="num">${k.tiere}</td><td class="num">${k.umsatz?esc(eur(k.umsatz)):"–"}</td><td style="white-space:nowrap">${esc(dShort(k.letzte))}</td>
       <td>${k.info.gewerbe?'<span class="chip">Gewerbe</span>':k.info.karte?`${stempelDots(k)}${k.frei?` <span class="chip neu">${k.frei}× gratis</span>`:""}`:'<span class="sub">–</span>'}</td></tr>`).join("")
       :`<tr><td colspan="6" class="empty">Keine Kunden gefunden.</td></tr>`)+`</tbody>`;
@@ -979,6 +980,9 @@ function renderKundeDetail(){
       <button class="btn ghost" type="button" id="k-close">Schließen</button></div>
     <div class="btns">${wa?`<a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost" href="tel:${esc(k.telefon.replace(/\s/g,""))}">Anrufen</a>`:""}
       <button class="btn ghost" type="button" id="k-neu">Neue Bestellung</button>${k.info.karte&&!k.info.gewerbe?'<button class="btn" type="button" id="k-bild">🖼 Stempelkarte als Bild</button>':""}</div>
+    <div class="section-h">Notiz / Interesse</div>
+    <textarea id="k-notiz" placeholder="z. B. will 5 Sussex im März, Wunsch-Haltepunkt Warburg">${esc(k.info.interesse||"")}</textarea>
+    <div class="btns" style="margin-top:6px"><button class="btn ghost" type="button" id="k-notiz-ok">Notiz speichern</button>${k.info.ort?`<span class="sub">Wunsch-Haltepunkt: ${esc(k.info.ort)}</span>`:""}</div>
     <div class="section-h">Stempelkarte</div>
     ${k.info.gewerbe?`<p>Als <b>Gewerbe / Mobilstall</b> markiert – keine Stempelkarte.</p><button class="btn ghost" type="button" id="k-gew0">Doch Privatkunde</button>`:
       k.info.karte?`<div class="bigdots">${stempelDots(k)}</div>
@@ -1007,7 +1011,8 @@ function renderKundeDetail(){
     if(meinLink(k.key)) setz(); else {a.style.opacity=.5; meinLinksLaden([k.key],()=>{a.style.opacity=1;setz()})}}}}
   on("#k-stop",()=>saveKunde(k.key,{keineRund:!k.info.keineRund,name:k.name,telefon:k.telefon}));
   on("#k-del",async()=>{if(!confirm(k.name+" aus der Kartei entfernen?"))return;try{await window.__holle.db.doc("kunden/"+k.key).delete();kSel=null;toast("Entfernt")}catch(e){toast("Hat nicht geklappt.")}});
-  on("#k-neu",()=>{resetForm();$("#f-kunde").value=k.name;$("#f-tel").value=k.telefon;$("#f-wohnort").value=k.wohnort;showTab("neu");window.scrollTo({top:0,behavior:"smooth"})});
+  on("#k-neu",()=>{resetForm();$("#f-kunde").value=k.name;$("#f-tel").value=k.telefon;$("#f-wohnort").value=k.wohnort;if(k.info.interesse&&!$("#f-bem").value)$("#f-bem").value=k.info.interesse;showTab("neu");setTimeout(()=>$("#form").scrollIntoView({behavior:"smooth"}),30)});
+  on("#k-notiz-ok",async()=>{await saveKunde(k.key,{interesse:$("#k-notiz").value.trim(),name:k.name,telefon:k.telefon});renderKunden()});
 }
 ["#k-q","#k-f"].forEach(s=>$(s).addEventListener("input",renderKunden));
 
@@ -1292,8 +1297,8 @@ function renderRund(){
   if(!$("#rn-text").value) $("#rn-text").value=a.text||RN_STD;
   let ks=kundenListe().filter(k=>telKey(k.telefon)&&!k.info.keineRund);
   const f=$("#rn-f").value;
-  if(f==="best") ks=ks.filter(k=>k.anzahl>0); if(f==="kontakt") ks=ks.filter(k=>k.kontaktNur); if(f==="stamm") ks=ks.filter(k=>k.anzahl>=3);
-  const letzterOrt=k=>(k.orders.find(o=>o.status!=="storniert")||{}).ort||"";
+  if(f==="best") ks=ks.filter(k=>k.anzahl>0); if(f==="kontakt") ks=ks.filter(k=>k.kontaktNur); if(f==="interessent") ks=ks.filter(k=>k.info.interessent); if(f==="stamm") ks=ks.filter(k=>k.anzahl>=3);
+  const letzterOrt=k=>(k.orders.find(o=>o.status!=="storniert")||{}).ort||k.info.ort||"";
   const oSel=$("#rn-ort"), oc=oSel.value, orte=[...new Set(ks.map(letzterOrt).filter(Boolean))].sort((x,y)=>x.localeCompare(y,"de"));
   oSel.innerHTML=`<option value="">Alle</option>`+orte.map(o=>`<option${o===oc?" selected":""}>${esc(o)}</option>`).join("");
   if(oSel.value) ks=ks.filter(k=>letzterOrt(k)===oSel.value);
@@ -1972,3 +1977,30 @@ function preisInfo(p){
   const hahn=/\bhahn\b/i.test(p.tier), von=hahn?pr.price_hahn:pr.price, bis=hahn?pr.price_hahn_bis:pr.price_bis;
   return von!=null&&bis!=null?`${eur(+von).replace(/\s*€$/,"")}–${eur(+bis)} je nach Alter`:"";
 }
+
+/* ---------- Interessenten direkt speichern ---------- */
+(function(){
+  var dlg=$("#inDlg"); if(!dlg) return;
+  var orte=function(){var m=new Set();TOURS.forEach(function(t){t.stops.forEach(function(st){if(st[1]&&st[1]!==HOME)m.add(st[1])})});return [...m].sort(function(a,b){return a.localeCompare(b,"de")})};
+  $("#in-open").onclick=function(){
+    $("#dl-orte").innerHTML=orte().map(function(o){return `<option value="${esc(o)}">`}).join("");
+    ["#in-name","#in-tel","#in-wohn","#in-ort","#in-int"].forEach(function(i){$(i).value=""});
+    dlg.hidden=false; setTimeout(function(){$("#in-name").focus()},50);
+  };
+  $("#in-close").onclick=function(){dlg.hidden=true};
+  $("#in-go").onclick=async function(){
+    var name=$("#in-name").value.trim(), tel=$("#in-tel").value.trim(), key=telKey(tel);
+    if(!key){toast("Bitte eine gültige Handynummer eingeben.");return}
+    var cur=kundenInfo[key]||{}, now=new Date().toISOString();
+    var data=Object.assign({},cur,{kontakt:true,interessent:true,name:name||cur.name||tel,telefon:tel,
+      wohnort:$("#in-wohn").value.trim()||cur.wohnort||"",ort:$("#in-ort").value.trim()||cur.ort||"",
+      interesse:$("#in-int").value.trim()||cur.interesse||"",angelegt:cur.angelegt||now,updated:now});
+    $("#in-go").disabled=true;
+    try{
+      var r=await SB.from("bb_docs").upsert([{coll:"kunden",id:key,data:data}],{onConflict:"coll,id"}); if(r.error) throw r.error;
+      kundenInfo[key]=data; dlg.hidden=true; toast((cur.name?"Aktualisiert: ":"Gespeichert: ")+data.name);
+      renderKunden(); renderNachrichten();
+    }catch(e){toast("Speichern fehlgeschlagen: "+(e.message||e))}
+    $("#in-go").disabled=false;
+  };
+})();
