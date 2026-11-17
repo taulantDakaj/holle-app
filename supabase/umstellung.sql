@@ -817,3 +817,89 @@ create or replace function push_anzahl() returns int
 language sql stable security definer set search_path = public as $$ select case when is_staff() then (select count(*)::int from push_abos) end; $$;
 revoke all on function push_anzahl() from public, anon;
 grant execute on function push_anzahl() to authenticated;
+-- ---------- Von-bis-Preise (Wochenpreise je nach Alter) ----------
+alter table products add column if not exists price_bis numeric(8,2);
+alter table products add column if not exists price_hahn_bis numeric(8,2);
+
+create or replace function eur_txt(x numeric) returns text
+language sql immutable as $$ select replace(replace(to_char(x, 'FM99990.00'), '.', ','), ',00', '') || ' €' $$;
+
+-- Stockenten (früher „Wildenten“)
+update products set name = 'Stockenten' where name = 'Wildenten';
+
+update products p set price = v.von, price_bis = v.bis, price_hahn = v.hvon, price_hahn_bis = v.hbis, price_note = v.notiz
+from (values
+  ('Mularden',            7.00, 8.50, null::numeric, null::numeric, '1 Woche 7 € · 2 Wochen 7,50 € · 3 Wochen 8,50 €'),
+  ('Flugenten',           7.00, 8.50, 8.00, 10.00, 'Ente 7 / 7,50 / 8,50 € · Erpel 8 / 9 / 10 € (1 / 2 / 3 Wochen)'),
+  ('Dänenenten',          7.00, 8.00, null, null, '1 Woche 7 € · 2 Wochen 7,50 € · 3 Wochen 8 €'),
+  ('Stockenten',          7.00, 8.50, null, null, '1 Woche 7 € · 2 Wochen 7,50 € · 3 Wochen 8,50 €'),
+  ('Laufenten',          10.00,12.00, null, null, '2 Wochen 10 € · 3 Wochen 12 €'),
+  ('Sachsenenten',        7.00, 9.00, null, null, '1 Woche 7 € · 2 Wochen 8 € · 3 Wochen 9 €'),
+  ('Perlhühner',         13.00,15.00, null, null, '6 Wochen 13 € · 10 Wochen 15 €'),
+  ('Weiße Puten',        11.00,15.00,12.00, 16.00, '5–6 Wochen · Henne 11–15 €, Hahn 12–16 € (Preis je nach Woche)'),
+  ('Bronzeputen',        12.00,17.00, null, null, '5–6 Wochen · 12–17 € (Preis je nach Woche)'),
+  ('Masthähnchen 3 Wochen', 4.50, 5.00, null, null, '4,50–5 € je nach Alter'),
+  ('Masthähnchen schlachtreif', 8.50,10.00, null, null, '8,50–10 € je nach Größe')
+) v(name, von, bis, hvon, hbis, notiz)
+where p.name = v.name;
+
+update products set price = 8.00, price_bis = null, price_note = 'legereif' where name = 'Wachtelhennen';
+
+-- Gänse nach Farbe
+insert into products (category, name, price, price_bis, price_note, available, sort, beschreibung)
+values ('Enten & Gänse', 'Weiße Gänse', 12.00, 15.00, '14 Tage 12 € · 21 Tage 15 €', true, 60,
+        'Junge weiße Gänse (Gössel). Wachsam, brauchen Weide und Wasser. Aufzucht anfangs geschützt und warm.'),
+       ('Enten & Gänse', 'Graue Gänse', 13.00, 16.00, '14 Tage 13 € · 21 Tage 16 €', true, 60,
+        'Junge graue Gänse (Gössel). Robust und wachsam, brauchen Weide und Wasser. Aufzucht anfangs geschützt und warm.')
+on conflict (name) do update set price = excluded.price, price_bis = excluded.price_bis, price_note = excluded.price_note, available = true;
+update products set available = false where name = 'Gänse / Gössel';
+
+create or replace function get_shop_data() returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'products', coalesce((
+      select json_agg(json_build_object(
+        'id', p.id, 'category', p.category, 'name', p.name,
+        'price', p.price, 'price_bis', p.price_bis, 'price_hahn', p.price_hahn, 'price_hahn_bis', p.price_hahn_bis,
+        'price_note', p.price_note, 'note', p.note, 'bestand', p.bestand,
+        'bild_url', p.bild_url, 'beschreibung', p.beschreibung)
+        order by p.sort, p.category, p.name)
+      from products p where p.available), '[]'::json),
+    'fahrten', coalesce((
+      select json_agg(json_build_object(
+        'datum', f.datum, 'tour', f.tour, 'nur_orte', f.nur_orte, 'hinweis', f.hinweis)
+        order by f.datum, f.tour)
+      from fahrten f
+      where f.aktiv and f.datum >= current_date and f.datum <= current_date + 150), '[]'::json)
+  );
+$$;
+
+-- Kunden-Bestellung: bei Von-bis-Preis kein fester Preis, sondern Preisspanne als Info
+do $do$
+declare d text := pg_get_functiondef('submit_order(jsonb)'::regprocedure);
+begin
+  if position('preis_info' in d) = 0 then
+    d := replace(d, $x$'preis', case when v_hahn then v_prod.price_hahn else v_prod.price end));$x$,
+      $x$'preis', case when v_hahn then (case when v_prod.price_hahn_bis is null then v_prod.price_hahn end)
+                       else (case when v_prod.price_bis is null then v_prod.price end) end,
+      'preis_info', case when v_hahn and v_prod.price_hahn_bis is not null then replace(eur_txt(v_prod.price_hahn), ' €', '') || '–' || eur_txt(v_prod.price_hahn_bis) || ' je nach Alter'
+                         when not v_hahn and v_prod.price_bis is not null then replace(eur_txt(v_prod.price), ' €', '') || '–' || eur_txt(v_prod.price_bis) || ' je nach Alter' end));$x$);
+    execute d;
+  end if;
+end $do$;
+
+-- Zuordnung alter Name
+create or replace function bestand_produkt(p_tier text) returns bigint
+language sql stable set search_path = public as $$
+  with b as (select trim(regexp_replace(trim(coalesce(p_tier,'')), '\s+Hahn$', '', 'i')) as n),
+  m as (select coalesce((select v from (values
+      ('bielefelder kennhuhn','Bielefelder Kennhühner'), ('schwedisches blumenhuhn','Schwedische Blumenhühner'),
+      ('zwerg lachshuhn','Zwerg Lachshühner'), ('zwerg wyandotte','Zwerg Wyandotten'), ('große wyandotte','Große Wyandotten'),
+      ('deutsches lachshuhn','Deutsche Lachshühner'), ('bartzwerg','Bartzwerge'), ('seidenhuhn','Seidenhühner'),
+      ('watermaalscher zwerg','Watermaalsche Zwerge'), ('weißhaube','Weißhauben'),
+      ('moderner englischer zwergkämpfer','Mod. Engl. Zwergkämpfer'), ('flugerpel','Flugenten'), ('lauferpel','Laufenten'),
+      ('wachtelhähne','Wachtelhennen'), ('wachtelhahn','Wachtelhennen'), ('wildenten','Stockenten'), ('wildente','Stockenten'),
+      ('gänse / gössel','Weiße Gänse')) x(k, v)
+      where k = lower((select n from b))), (select n from b)) as n)
+  select id from products where lower(name) = lower((select n from m)) limit 1;
+$$;

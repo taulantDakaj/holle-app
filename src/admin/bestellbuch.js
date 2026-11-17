@@ -709,8 +709,8 @@ function bestaetigungText(o){
   const vn=(o.kunde||"").split(" ")[0];
   const pos=(o.positionen||[]).filter(p=>p.tier&&+p.anzahl);
   const ohne=pos.some(p=>p.preis==null||p.preis===""), summe=betrag(o);
-  const zeile=p=>`• ${p.anzahl} × ${p.tier}`+(p.preis!=null&&p.preis!==""?` à ${eur(+p.preis)} = ${eur(+p.anzahl*+p.preis)}`:" (Preis folgt)");
-  const gesamt=summe?`\n\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Preis folgt":""}`:"";
+  const zeile=p=>`• ${p.anzahl} × ${p.tier}`+(p.preis!=null&&p.preis!==""?` à ${eur(+p.preis)} = ${eur(+p.anzahl*+p.preis)}`:preisInfo(p)?` (${preisInfo(p)})`:" (Preis folgt)");
+  const gesamt=summe?`\n\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Wochenpreis/Preis folgt":""}`:"";
   return `Hallo ${vn}, deine Bestellung bei Geflügelverkauf Holle ist bestätigt:\n`+
     pos.map(zeile).join("\n")+gesamt+
     `\n\nAbholung: ${abholText(o)}\nBezahlung bei Abholung (bar, PayPal oder Überweisung).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.`+
@@ -765,8 +765,8 @@ async function loadProducts(){
   else{try{localStorage.setItem("holle-cache-products",JSON.stringify(data||[]))}catch(e){}}
   products=data||[];
   products.forEach(p=>{
-    if(p.price!=null) PREIS_VORSCHLAG[p.name]=+p.price;
-    if(p.price_hahn!=null) PREIS_VORSCHLAG[p.name+" Hahn"]=+p.price_hahn;
+    if(p.price!=null&&p.price_bis==null) PREIS_VORSCHLAG[p.name]=+p.price; else delete PREIS_VORSCHLAG[p.name];
+    if(p.price_hahn!=null&&p.price_hahn_bis==null) PREIS_VORSCHLAG[p.name+" Hahn"]=+p.price_hahn; else delete PREIS_VORSCHLAG[p.name+" Hahn"];
     if(!TIERE.includes(p.name)) TIERE.push(p.name);
     if(p.price_hahn!=null&&!TIERE.includes(p.name+" Hahn")) TIERE.push(p.name+" Hahn");
   });
@@ -783,13 +783,15 @@ function renderProducts(){
   const tb=$("#pr-table"); if(!tb) return;
   $("#dl-kat").innerHTML=[...new Set(products.map(p=>p.category))].map(k=>`<option value="${esc(k)}">`).join("");
   let last=null;
-  tb.innerHTML=`<thead><tr><th>In App</th><th>Tierart</th><th class="num">Preis €</th><th class="num">Hahn €</th><th class="num">Bestand</th><th>Hinweis</th><th>Bild & Info</th></tr></thead><tbody>`+
+  tb.innerHTML=`<thead><tr><th>In App</th><th>Tierart</th><th class="num">Preis €</th><th class="num">bis €</th><th class="num">Hahn €</th><th class="num">bis €</th><th class="num">Bestand</th><th>Hinweis</th><th>Bild & Info</th></tr></thead><tbody>`+
     products.map(p=>{const head=p.category!==last?(last=p.category):null;
-      return (head?`<tr class="tot"><td colspan="7">${esc(head)}</td></tr>`:"")+
+      return (head?`<tr class="tot"><td colspan="9">${esc(head)}</td></tr>`:"")+
       `<tr><td><input type="checkbox" data-pid="${p.id}" data-f="available" ${p.available?"checked":""} style="width:22px;height:22px"></td>
        <td>${esc(p.name)}</td>
        <td class="num"><input data-pid="${p.id}" data-f="price" value="${p.price??""}" inputmode="decimal" style="width:80px;text-align:right"></td>
+       <td class="num"><input data-pid="${p.id}" data-f="price_bis" value="${p.price_bis??""}" inputmode="decimal" placeholder="–" style="width:70px;text-align:right"></td>
        <td class="num"><input data-pid="${p.id}" data-f="price_hahn" value="${p.price_hahn??""}" inputmode="decimal" style="width:80px;text-align:right"></td>
+       <td class="num"><input data-pid="${p.id}" data-f="price_hahn_bis" value="${p.price_hahn_bis??""}" inputmode="decimal" placeholder="–" style="width:70px;text-align:right"></td>
        <td class="num"><input data-pid="${p.id}" data-f="bestand" value="${p.bestand??""}" inputmode="numeric" placeholder="∞" style="width:70px;text-align:right${p.bestand===0?";color:var(--warn);font-weight:700":""}"></td>
        <td><input data-pid="${p.id}" data-f="price_note" value="${esc(p.price_note??"")}" placeholder="z. B. je nach Alter"></td>
        <td><button class="btn ghost tinfo-edit" type="button" data-tinfo="${p.id}">${p.bild_url?`<img src="${esc(p.bild_url)}" alt="">`:"📷"} ${p.bild_url||p.beschreibung?"ändern":"hinzufügen"}</button></td></tr>`}).join("")+`</tbody>`;
@@ -1947,3 +1949,10 @@ $("#nw-go").onclick=async()=>{
   }catch(e){toast("Fehlgeschlagen: "+(e.message||e))}
   $("#nw-go").disabled=false;
 };
+
+function preisInfo(p){
+  if(p.preis_info) return p.preis_info;
+  const pr=typeof produktZuTier==="function"?produktZuTier(p.tier):null; if(!pr) return "";
+  const hahn=/\bhahn\b/i.test(p.tier), von=hahn?pr.price_hahn:pr.price, bis=hahn?pr.price_hahn_bis:pr.price_bis;
+  return von!=null&&bis!=null?`${eur(+von).replace(/\s*€$/,"")}–${eur(+bis)} je nach Alter`:"";
+}

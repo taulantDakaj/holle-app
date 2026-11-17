@@ -166,16 +166,17 @@ export default function Shop() {
                       <div className="pname">{p.name}</div>
                       {p.beschreibung && <button type="button" className="pmehr" onClick={() => setZoom(p)}>Mehr zur Rasse</button>}
                       {p.note && <div className="pmeta">{p.note}</div>}
+                      {p.price && p.price_note && <div className="pmeta">{p.price_note}</div>}
                       {p.bestand === 0 ? <div className="pstock out">ausverkauft</div>
                         : p.bestand != null && p.bestand <= 20 ? <div className="pstock">nur noch {p.bestand} verfügbar</div> : null}
                     </div>
                     {p.bestand === 0 && <Warteliste p={p} />}
                     {p.bestand !== 0 && <div className="variants">
-                      <Variant label={p.price_hahn ? 'Henne' : ''}
-                        price={p.price ? fmtPrice(p.price) : p.price_note || 'auf Anfrage'}
+                      <Variant label={p.price_hahn ? (/ente/i.test(p.name) ? 'Ente' : 'Henne') : ''}
+                        price={p.price ? spanne(p.price, p.price_bis) : p.price_note || 'auf Anfrage'}
                         value={qty[p.id]} onChange={(v) => setQ(p.id, v, p)} />
                       {p.price_hahn && (
-                        <Variant label="Hahn" price={fmtPrice(p.price_hahn)}
+                        <Variant label={/ente/i.test(p.name) ? 'Erpel' : 'Hahn'} price={spanne(p.price_hahn, p.price_hahn_bis)}
                           value={qty[p.id + 'h']} onChange={(v) => setQ(p.id + 'h', v, p)} />
                       )}
                     </div>}
@@ -407,8 +408,9 @@ export function MeineBestellung({ id }) {
           <h2>Hallo {o.vorname}, deine Bestellung {o.nr}</h2>
           <p className={'status s-' + o.status}>{STATUS_TEXT[o.status] || o.status}</p>
           <p><b>Abholung:</b> {o.tour === 'R' ? 'Rietberg' : o.ort}, {fmtDate(o.datum)}{st && st[0] ? `, ${st[0]} Uhr` : ''}</p>
-          <ul className="poslist">{pos.map((p, i) => <li key={i}>{p.anzahl} × {p.tier}{p.preis ? ` à ${fmtPrice(p.preis)}` : ''}</li>)}</ul>
-          {summe > 0 && <p><b>Gesamt: {fmtPrice(summe)}</b> · Bezahlung bei Abholung</p>}
+          <ul className="poslist">{pos.map((p, i) => <li key={i}>{p.anzahl} × {p.tier}{p.preis ? ` à ${fmtPrice(p.preis)}` : p.preis_info ? ` (${p.preis_info})` : ''}</li>)}</ul>
+          {summe > 0 && <p><b>Gesamt: {fmtPrice(summe)}</b>{pos.some((p) => p.preis_info) ? ' zzgl. Tiere mit Wochenpreis' : ''} · Bezahlung bei Abholung</p>}
+          {pos.some((p) => p.preis_info) && <p className="hint">Bei Tieren mit Wochenpreis richtet sich der Preis nach dem Alter am Abholtag.</p>}
           {msg && <div className="alert">{msg}</div>}
           {o.stornierbar && !frage && <button className="btn ghost" onClick={() => setFrage(true)}>Bestellung absagen</button>}
           {frage && (
@@ -451,4 +453,9 @@ export function Stempelkarte({ k }) {
       <p className="hint">1 Rassehenne = 1 Stempel · 2 Hybridhennen = 1 Stempel. Gezählt wird bei Abholung.</p>
     </div>
   );
+}
+
+function spanne(von, bis) {
+  if (!bis || Number(bis) === Number(von)) return fmtPrice(von);
+  return fmtPrice(von).replace(/\s*€$/, '') + '–' + fmtPrice(bis);
 }
