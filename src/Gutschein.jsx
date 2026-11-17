@@ -149,7 +149,7 @@ export default function Gutschein() {
           <ul>
             <li>Bezahlung per PayPal oder Überweisung – die Daten bekommst du mit der Bestätigung per WhatsApp.</li>
             <li>Nach Zahlungseingang schreiben wir den Gutschein von Hand und schicken ihn los.</li>
-            <li>Einlösbar für alle Tiere aus unserem Sortiment, an allen Haltepunkten oder in Rietberg. Keine Barauszahlung.</li>
+            <li>Einlösbar für alle Tiere aus unserem Sortiment, an allen Haltepunkten oder in Rietberg. Keine Barauszahlung. Der Gutschein ist 3 Jahre gültig, gerechnet ab Kauf.</li>
             <li>Fragen? <a href={`tel:${SHOP_PHONE.replace(/\s/g, '')}`}>{SHOP_PHONE}</a> oder WhatsApp.</li>
           </ul>
         </section>
