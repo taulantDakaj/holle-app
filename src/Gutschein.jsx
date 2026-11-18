@@ -65,8 +65,8 @@ export default function Gutschein() {
   return (
     <Page>
       <section className="card gs-kopf">
-        <h2>🎁 Hühner verschenken</h2>
-        <p>Mit unserem Gutschein sucht sich der Beschenkte seine Hühner selbst aus – Junghennen, Rassehühner, Enten und mehr. Eingelöst wird an allen Haltepunkten oder in Rietberg, ab dem Saisonstart im Februar 2027.</p>
+        <h2>🎁 Ei-n Gutschein</h2>
+        <p>Das Geschenk, das Eier legt: Mit dem Ei-n Gutschein sucht sich der Beschenkte seine Hühner selbst aus – Junghennen, Rassehühner, Enten und mehr. Eingelöst wird an allen Haltepunkten oder in Rietberg, ab dem Saisonstart im Februar 2027.</p>
         {GUTSCHEIN_FRIST && <p className="gs-frist">Für Weihnachten per Post bis <b>{GUTSCHEIN_FRIST}</b> bestellen.</p>}
       </section>
 
@@ -171,8 +171,8 @@ export function GutscheinTeaser() {
     <a className="card gs-teaser" href="./#/gutschein">
       <img src="./gutschein-weihnachten.jpg" alt="" />
       <div>
-        <b>Hühner verschenken 🎁</b>
-        <span>Gutschein von Holle – das Geschenk, das Eier legt. Jetzt bestellen →</span>
+        <b>Ei-n Gutschein 🎁</b>
+        <span>Hühner verschenken – das Geschenk, das Eier legt. Jetzt bestellen →</span>
       </div>
     </a>
   );
