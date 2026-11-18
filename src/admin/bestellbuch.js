@@ -318,7 +318,10 @@ const SHEET_CSS=`
 .sheet.nach .nfeld{display:flex;gap:30px;margin:4px 0 12px;font-size:15px;font-weight:700}
 .sheet.nach .nfeld i{display:inline-block;width:140px;border-bottom:1.5px solid #111;margin-left:6px}
 .sheet.nach .nfeld i.w{width:260px}
-.sheet .foot{font-size:10px;color:#555;margin-top:14px}`;
+.sheet .foot{font-size:10px;color:#555;margin-top:14px}
+.sheet{background:#fff;color:#111;color-scheme:light}
+.sheet .stop{background:#fff;border:0;border-left:8px solid var(--oc,#111);border-radius:0;overflow:visible;margin-bottom:0}
+.sheet td{background:#fff;color:#111}`;
 (()=>{const s=document.createElement("style");s.textContent=SHEET_CSS;document.head.appendChild(s)})();
 
 function tierSumme(list){const m=new Map();list.forEach(o=>(o.positionen||[]).forEach(p=>{if(p.tier&&+p.anzahl)m.set(p.tier,(m.get(p.tier)||0)+ +p.anzahl)}));return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],"de"))}
