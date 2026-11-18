@@ -24,7 +24,7 @@ function termineAus(fahrten) {
     if (!t) continue;
     for (const [zeit, ort] of t.stops) {
       if (f.nur_orte && f.nur_orte.length && !f.nur_orte.includes(ort)) continue;
-      out.push({ ort, datum: f.datum, tour: f.tour, zeit, hinweis: f.hinweis });
+      out.push({ ort, datum: f.datum, tour: f.tour, zeit: (f.zeiten && f.zeiten[ort]) || zeit, hinweis: f.hinweis });
     }
   }
   return out;

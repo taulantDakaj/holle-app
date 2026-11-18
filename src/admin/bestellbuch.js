@@ -68,12 +68,20 @@ var MOTIV_X={
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const tourById=id=>TOURS.find(t=>t.id===id);
+// Tour an einem bestimmten Tag: abweichende Uhrzeiten/Orte aus „fahrten“ (Sondertouren), nach Uhrzeit sortiert
+function tourAm(id,datum){const t=tourById(id);if(!t||!datum)return t;
+  const f=(typeof fahrten!=="undefined"&&fahrten||[]).find(x=>x.datum===datum&&x.tour===id);
+  if(!f||!f.zeiten||!Object.keys(f.zeiten).length)return t;
+  const z=f.zeiten,nur=f.nur_orte&&f.nur_orte.length?f.nur_orte:null;
+  const stops=t.stops.filter(s=>s[1]===HOME||!nur||nur.includes(s[1])).map(s=>[s[1]===HOME?s[0]:(z[s[1]]||s[0]),s[1],s[2]]);
+  stops.sort((a,b)=>a[1]===HOME?1:b[1]===HOME?-1:String(a[0]).localeCompare(String(b[0])));
+  return Object.assign({},t,{stops,sonder:true})}
 const eur=n=>n.toLocaleString("de-DE",{style:"currency",currency:"EUR"});
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 function nextSaturday(){const d=new Date();d.setDate(d.getDate()+((6-d.getDay()+7)%7));return iso(d)}
 const dLong=s=>s?new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"}):"";
 const dShort=s=>s?new Date(s+"T12:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit"}):"";
-function stopIdx(o){const t=tourById(o.tour);return t?Math.max(0,t.stops.findIndex(s=>s[1]===o.ort)):99}
+function stopIdx(o){const t=tourAm(o.tour,o.datum);return t?Math.max(0,t.stops.findIndex(s=>s[1]===o.ort)):99}
 const stueck=o=>(o.positionen||[]).reduce((a,p)=>a+(+p.anzahl||0),0);
 const brutto=o=>(o.positionen||[]).reduce((a,p)=>a+(+p.anzahl||0)*(+p.preis||0),0);
 // Rabatt: {art:"prozent"|"euro", wert}
@@ -343,6 +351,7 @@ function buildSheet(datum,tourId){
       `<table class="extra"><thead><tr><th>Zusätzlich am Stall aufgeladen</th><th class="r">Stück</th></tr></thead><tbody>`+
       Array.from({length:extraRows},()=>`<tr><td>&nbsp;</td><td></td></tr>`).join("")+`</tbody></table></div>`;
     h+=`<h2>Kunden je Abholort</h2>`;
+    t=tourAm(t.id,datum)||t;
     const known=t.stops.map(s=>s[1]);
     const groups=t.stops.map(s=>({s,os:list.filter(o=>o.ort===s[1])})).filter(g=>g.os.length);
     const rest=list.filter(o=>!known.includes(o.ort));if(rest.length)groups.push({s:["","Sonstige",""],os:rest});
@@ -656,6 +665,7 @@ function buildFahr(datum,tourId){
   if(!tours.length) return `<div class="sheet"><div class="none">Für ${esc(dLong(datum))} gibt es noch keine Bestellungen.</div></div>`;
   const leer=$("#f2-leer").checked;
   return `<div class="sheet fahr">`+tours.map(t=>{
+    t=tourAm(t.id,datum)||t;
     const list=act.filter(o=>o.tour===t.id);
     let rows=t.stops.filter(s=>s[1]!==HOME).map(s=>{const h=halt(s[1]);return {zeit:s[0],ort:s[1],laden:h.laden,adr:navi(h),fehlt:!h.str,n:list.filter(o=>o.ort===s[1]).length}});
     if(leer) rows=rows.filter(r=>r.n);
@@ -716,7 +726,7 @@ function waNum(t){let n=String(t||"").replace(/[^0-9+]/g,"");if(n.startsWith("+"
 function abholText(o){
   if(o.tour==="R") return `in Rietberg am ${dLong(o.datum)}. Uhrzeit und genauen Ort schicken wir dir noch.`;
   if(o.ort===HOME) return `Lieferung am ${dLong(o.datum)}${o.adresse?" nach "+o.adresse:""}.`;
-  const t=tourById(o.tour), st=t?t.stops.find(s=>s[1]===o.ort):null, h=halt(o.ort);
+  const t=tourAm(o.tour,o.datum), st=t?t.stops.find(s=>s[1]===o.ort):null, h=halt(o.ort);
   const wo=[h.laden,navi(h)].filter(Boolean).join(", ");
   return `${dLong(o.datum)}${st&&st[0]?", "+st[0]+" Uhr":""} in ${o.ort}${wo?" ("+wo+")":""}.`;
 }
@@ -835,7 +845,7 @@ $("#pr-add").onclick=async()=>{
 };
 
 /* ---------- Termine (Fahrten) für die Kunden-App ---------- */
-let fahrten=[];
+var fahrten=[];
 const faTour=$("#fa-tour"), faOrte=$("#fa-orte");
 faTour.innerHTML=TOURS.filter(t=>t.id!=="R").map(t=>`<option value="${t.id}">${esc(t.nr+" – "+t.name)}</option>`).join("");
 const fillFaOrte=()=>{const t=tourById(faTour.value);faOrte.innerHTML=t.stops.filter(s=>s[1]!==HOME).map(s=>`<option value="${esc(s[1])}">${esc((s[0]?s[0]+" · ":"")+s[1])}</option>`).join("")};
@@ -853,7 +863,7 @@ function renderFahrten(){
     fahrten.map(f=>{const t=tourById(f.tour);const n=orders.filter(o=>o.datum===f.datum&&o.tour===f.tour&&o.status!=="storniert").length;
       return `<tr><td style="white-space:nowrap"><b>${esc(dShort(f.datum))}</b><br><span class="sub">${n} Bestellungen</span></td>
       <td>${esc(t?t.nr+" – "+t.name:f.tour)}${f.hinweis?`<br><span class="sub">${esc(f.hinweis)}</span>`:""}</td>
-      <td class="sub">${f.nur_orte&&f.nur_orte.length?esc(f.nur_orte.join(", ")):"alle"}</td>
+      <td class="sub">${f.zeiten&&Object.keys(f.zeiten).length?Object.entries(f.zeiten).sort((a,b)=>a[1].localeCompare(b[1])).map(([o,z])=>esc(z+" "+o)).join(" · "):f.nur_orte&&f.nur_orte.length?esc(f.nur_orte.join(", ")):"alle"}</td>
       <td><input type="checkbox" data-fid="${f.id}" ${f.aktiv?"checked":""} style="width:22px;height:22px"></td>
       <td><button class="btn warn" type="button" data-fdel="${f.id}" style="padding:4px 10px">×</button></td></tr>`}).join("")+`</tbody>`;
   tb.querySelectorAll("[data-fid]").forEach(c=>c.onchange=async()=>{const {error}=await SB.from("fahrten").update({aktiv:c.checked}).eq("id",+c.dataset.fid);toast(error?"Speichern fehlgeschlagen.":c.checked?"Termin für Kunden sichtbar":"Termin für Kunden ausgeblendet");loadFahrten()});
@@ -1193,7 +1203,7 @@ function renderErinnern(){
   const alle=orders.filter(o=>o.datum===cur&&erOffen(o));
   const oSel=$("#er-ort"), orte=[...new Set(alle.map(o=>o.ort))].sort((a,b)=>a.localeCompare(b,"de")), oc=oSel.value;
   oSel.innerHTML=`<option value="">Alle (${alle.length})</option>`+orte.map(o=>`<option${o===oc?" selected":""}>${esc(o)}</option>`).join("");
-  const halteZeit=o=>{const t=tourById(o.tour),st=t?t.stops.find(s=>s[1]===o.ort):null;return st?st[0]||"":""};
+  const halteZeit=o=>{const t=tourAm(o.tour,o.datum),st=t?t.stops.find(s=>s[1]===o.ort):null;return st?st[0]||"":""};
   const os=alle.filter(o=>!oSel.value||o.ort===oSel.value).sort((a,b)=>(a.erinnert?1:0)-(b.erinnert?1:0)||halteZeit(a).localeCompare(halteZeit(b))||a.kunde.localeCompare(b.kunde,"de"));
   const done=alle.filter(o=>o.erinnert).length;
   $("#er-info").textContent=cur?`${done} von ${alle.length} Kunden erinnert.`:"";
@@ -1359,7 +1369,7 @@ function renderFahrer(){
   const tSel=$("#fr-tour"), ts=[...new Set(act.filter(o=>o.datum===cur).map(o=>o.tour))].sort();
   const tc=ts.includes(tSel.value)?tSel.value:ts[0]||"";
   tSel.innerHTML=ts.map(t=>{const tr=tourById(t);return `<option value="${t}"${t===tc?" selected":""}>${esc(tr?tr.nr+" – "+tr.name:t)}</option>`}).join("");
-  const os=act.filter(o=>o.datum===cur&&o.tour===tc), tr=tourById(tc);
+  const os=act.filter(o=>o.datum===cur&&o.tour===tc), tr=tourAm(tc,cur);
   const bez=os.filter(o=>o.zahlung).reduce((a,o)=>a+(+o.zahlung.betrag||0),0), nd=os.filter(o=>o.nichtDa).length;
   $("#fr-kpis").innerHTML=os.length?`<div class="fz-zahlen"><span><b>${os.length}</b> ${T("kunden")}</span><span><b>${os.reduce((a,o)=>a+stueck(o),0)}</b> ${T("tiere")}</span><span>${T("kassiert")} <b>${esc(eur(bez))}</b> / ${esc(eur(os.reduce((a,o)=>a+betrag(o),0)))}</span>${nd?`<span><b>${nd}</b> ${T("nichtErsch")}</span>`:""}</div>`:"";
   if(os.length){const fertig=os.filter(o=>o.zahlung||o.nichtDa).length,pz=Math.round(fertig/os.length*100);
@@ -1582,7 +1592,7 @@ ladeFahrer();
 
 /* ---------- Fahrer: Kunde nicht da / Kunde anschreiben ---------- */
 function woBistDuText(o){
-  const t=tourById(o.tour), st=t?t.stops.find(s=>s[1]===o.ort):null;
+  const t=tourAm(o.tour,o.datum), st=t?t.stops.find(s=>s[1]===o.ort):null;
   return `Hallo ${vorname(o.kunde)}, hier ist der Fahrer von Geflügelverkauf Holle 🐔\nWir sind ${st&&st[0]?"seit "+st[0]+" Uhr ":""}in ${o.ort} und haben deine Tiere dabei (${tierText(o,", ")}). Kommst du noch? Wir fahren bald weiter.`;
 }
 async function nichtDa(id,an){
@@ -1805,7 +1815,7 @@ async function igStart(){
     igGeladen=true;
     try{await Promise.all(["800 80px Outfit","600 40px Outfit","400 30px Outfit"].map(f=>document.fonts.load(f)))}catch(e){}
     const h=iso(new Date()), bis=iso(new Date(Date.now()+365*864e5));
-    const {data}=await SB.from("fahrten").select("datum,tour,nur_orte,hinweis,aktiv").gte("datum",h).lte("datum",bis).eq("aktiv",true).order("datum");
+    const {data}=await SB.from("fahrten").select("datum,tour,nur_orte,hinweis,aktiv,zeiten").gte("datum",h).lte("datum",bis).eq("aktiv",true).order("datum");
     igFahrten=data||[];
     const tage=[...new Set(igFahrten.map(f=>f.datum))];
     $("#ig-datum").innerHTML=tage.map(d=>`<option value="${d}">${esc(dShort(d))} · ${igFahrten.filter(f=>f.datum===d).map(f=>tourById(f.tour)?.nr||f.tour).join(", ")}</option>`).join("")||`<option value="">Keine Termine</option>`;
@@ -1836,7 +1846,8 @@ function igTouren(){
   const d=$("#ig-datum").value;
   const nur=$("#ig-tour").value;
   return (igFahrten||[]).filter(f=>f.datum===d&&(!nur||f.tour===nur)).map(f=>{const t=tourById(f.tour); if(!t) return null;
-    const stops=t.stops.filter(s=>s[1]!==HOME&&(!f.nur_orte||!f.nur_orte.length||f.nur_orte.includes(s[1])));
+    const z=f.zeiten||{};
+    const stops=t.stops.filter(s=>s[1]!==HOME&&(!f.nur_orte||!f.nur_orte.length||f.nur_orte.includes(s[1]))).map(s=>[z[s[1]]||s[0],s[1],s[2]]).sort((a,b)=>Object.keys(z).length?String(a[0]).localeCompare(String(b[0])):0);
     return {nr:t.nr,name:t.name,stops,hinweis:f.hinweis||""}}).filter(Boolean);
 }
 function igText(ctx,text,x,y,maxW){ // *Wort* in Hellrot

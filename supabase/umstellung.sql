@@ -1019,3 +1019,25 @@ language sql stable security definer set search_path = public as $$
     'stempelkarte', stempel_fuer(tel_key(data->>'telefon')))
   from bb_docs where coll = 'orders' and id = p_id and length(p_id) >= 16;
 $$;
+
+-- Abweichende Uhrzeiten je Termin (Sondertouren)
+alter table fahrten add column if not exists zeiten jsonb;
+create or replace function get_shop_data() returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'products', coalesce((
+      select json_agg(json_build_object(
+        'id', p.id, 'category', p.category, 'name', p.name,
+        'price', p.price, 'price_bis', p.price_bis, 'price_hahn', p.price_hahn, 'price_hahn_bis', p.price_hahn_bis,
+        'price_note', p.price_note, 'note', p.note, 'bestand', p.bestand,
+        'bild_url', p.bild_url, 'beschreibung', p.beschreibung)
+        order by p.sort, p.category, p.name)
+      from products p where p.available), '[]'::json),
+    'fahrten', coalesce((
+      select json_agg(json_build_object(
+        'datum', f.datum, 'tour', f.tour, 'nur_orte', f.nur_orte, 'hinweis', f.hinweis, 'zeiten', f.zeiten)
+        order by f.datum, f.tour)
+      from fahrten f
+      where f.aktiv and f.datum >= current_date and f.datum <= current_date + 150), '[]'::json)
+  );
+$$;
