@@ -30,7 +30,7 @@ self.addEventListener('fetch', (e) => {
   if (!gleich && !schrift && !bild) return; // Daten (Supabase) nicht hier zwischenspeichern
   if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
     // Seiten: erst Netz, sonst Speicher
-    e.respondWith(fetch(req).then((r) => { const k = r.clone(); caches.open(CACHE).then((c) => c.put(req, k)); return r; })
+    e.respondWith(fetch(req, { cache: 'no-cache' }).then((r) => { const k = r.clone(); caches.open(CACHE).then((c) => c.put(req, k)); return r; })
       .catch(() => caches.match(req, { ignoreSearch: true, ignoreVary: true }).then((r) => r || caches.match('./admin.html'))));
     return;
   }
