@@ -2039,12 +2039,26 @@ window.__holle.db.collection("einstellungen").onSnapshot(s=>{const d=s.docs.find
   try{await window.__holle.db.doc("einstellungen/gutschein").set(v);gsEinst=v;toast("Gespeichert")}catch(x){toast("Speichern fehlgeschlagen.")}})});
 ["#gs-such","#gs-filter"].forEach(id=>{const e=$(id);if(e)e.addEventListener("input",renderGutscheine)});
 function gsEuro(n){return Number(n||0).toLocaleString("de-DE")+" €"}
+// Fortlaufender Verwendungszweck je Jahr: Gutschein 2026001, 2026002, …
+function gsVZ(g){
+  if(g.vz) return g.vz;
+  const jahr=String(g.created||new Date().toISOString()).slice(0,4);
+  const imJahr=(gutscheine||[]).filter(x=>String(x.created||"").slice(0,4)===jahr).sort((a,b)=>String(a.created).localeCompare(String(b.created)));
+  let n=imJahr.findIndex(x=>x.id===g.id)+1; if(n<1) n=imJahr.length+1;
+  return `Gutschein ${jahr}${String(n).padStart(3,"0")}`;
+}
 function gsBestaetText(g){
-  const zahl=[gsEinst.paypal?`PayPal: ${gsEinst.paypal}`:"",gsEinst.iban?`Überweisung: ${gsEinst.iban}`:""].filter(Boolean).join("\n")||"PayPal: [ ]\nÜberweisung: [ ]";
-  return `Hallo ${vorname(g.name)}, vielen Dank für deine Gutschein-Bestellung bei Geflügelverkauf Holle 🎁🐔\n\n${g.anzahl}× Gutschein über ${gsEuro(g.wert)} (${g.motiv==="neutral"?"ganzjährig":"Weihnachten"})\nGesamt: ${gsEuro(g.summe)}\n\nBitte überweise den Betrag mit dem Verwendungszweck ${g.nr}:\n${zahl}\n\n`+
+  const vz=gsVZ(g);
+  const teile=[];
+  if(gsEinst.paypal) teile.push(`*PayPal:* ${gsEinst.paypal}`);
+  if(gsEinst.iban) teile.push(`*Überweisung:*\n${gsEinst.iban}`);
+  const zahl=teile.join("\n\n")||"PayPal: [ ]\nÜberweisung: [ ]";
+  return `Hallo ${vorname(g.name)}, vielen Dank für deine Gutschein-Bestellung bei Geflügelverkauf Holle 🎁🐔\n\n`+
+    `${g.anzahl}× Gutschein über ${gsEuro(g.wert)} (${g.motiv==="neutral"?"ganzjährig":"Weihnachten"})${g.fuer?` für ${g.fuer}`:""}\n*Gesamt: ${gsEuro(g.summe)}*\n\n`+
+    `Bitte bezahle den Betrag per PayPal oder Überweisung mit dem Verwendungszweck:\n*${vz}*\n\n${zahl}\n\n`+
     (g.art==="post"?`Sobald das Geld da ist, schreiben wir den Gutschein von Hand und schicken ihn per Post an:\n${g.adresse}`:`Sobald das Geld da ist, liegt der Gutschein in Rietberg für dich bereit. Wann passt dir die Abholung?`)+`\n\n${SHOP_WA_TEXT_GRUSS}`;
 }
-function gsBezahltText(g){return `Hallo ${vorname(g.name)}, die Zahlung für deinen Gutschein ${g.nr} ist angekommen – danke! 🎁\n`+(g.art==="post"?"Der Gutschein geht jetzt in die Post.":"Der Gutschein liegt in Rietberg für dich bereit.")+`\n\n${SHOP_WA_TEXT_GRUSS}`}
+function gsBezahltText(g){return `Hallo ${vorname(g.name)}, die Zahlung für deinen ${gsVZ(g)} ist angekommen – danke! 🎁\n`+(g.art==="post"?"Der Gutschein geht jetzt in die Post.":"Der Gutschein liegt in Rietberg für dich bereit.")+`\n\n${SHOP_WA_TEXT_GRUSS}`}
 async function gsSetze(id,patch){const g=gutscheine.find(x=>x.id===id);if(!g)return;const {id:_i,...d}=g;const neu={...d,...patch,updated:new Date().toISOString()};
   try{await window.__holle.db.doc("gutscheine/"+id).set(neu);Object.assign(g,patch);renderGutscheine();badge("#gs-n",gsOffenNeu())}catch(e){toast("Hat nicht geklappt.")}}
 function renderGutscheine(){
@@ -2065,7 +2079,7 @@ function renderGutscheine(){
     else if(st==="bezahlt") aktion=(g.art==="post"?btn("verschickt","✓ Verschickt","primary"):btn("abgeholt","✓ Abgeholt","primary"))+wa(gsBezahltText(g),"Zahlung bestätigen","wa");
     else if(st==="verschickt"||st==="abgeholt") aktion=btn("eingeloest","Eingelöst");
     if(!["eingeloest","storniert"].includes(st)) aktion+=btn("storniert","Storno");
-    return `<div class="kitem${["eingeloest","storniert"].includes(st)?" bezahlt":""}"><div class="kl"><b>${esc(g.nr)}</b> · <b>${esc(g.name)}</b> <span class="sub">${esc(g.telefon)}${g.email?" · "+esc(g.email):""}</span>
+    return `<div class="kitem${["eingeloest","storniert"].includes(st)?" bezahlt":""}"><div class="kl"><b>${esc(gsVZ(g))}</b> · <b>${esc(g.name)}</b> <span class="sub">${esc(g.telefon)}${g.email?" · "+esc(g.email):""}</span>
       <div>${g.anzahl}× ${gsEuro(g.wert)} = <b>${gsEuro(g.summe)}</b> · ${g.motiv==="neutral"?"ganzjährig":"Weihnachten"} · ${g.art==="post"?(g.an==="beschenkt"?"Post direkt an Beschenkten":"Post an Käufer"):"Abholung Rietberg"}</div>
       ${g.art==="post"?`<div class="sub">📮 ${esc(g.adresse)}</div>`:""}
       ${g.fuer||g.von?`<div class="sub">✍️ Für: ${esc(g.fuer||"–")} · Von: ${esc(g.von||"–")}</div>`:""}
@@ -2073,7 +2087,8 @@ function renderGutscheine(){
       <div class="sub">${esc(GS_ST[st]||st)} · bestellt ${esc(new Date(g.created).toLocaleDateString("de-DE"))}</div></div>
       <div class="kr">${aktion}</div></div>`}).join("");
   box.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const st=b.dataset.st;if(st==="storniert"&&!confirm("Gutschein-Bestellung stornieren?"))return;gsSetze(b.dataset.gs,{status:st,["am_"+st]:new Date().toISOString()})});
-  box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString()})}));
+  box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{const g=gutscheine.find(x=>x.id===a.dataset.gswa);const vz=g&&!g.vz?{vz:gsVZ(g)}:{};
+    if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString(),...vz});else if(vz.vz)gsSetze(a.dataset.gswa,vz)}));
 }
 
 /* ---------- Listen als PDF speichern / teilen ---------- */
