@@ -2080,6 +2080,8 @@ function renderGutscheine(){
     else if(st==="bezahlt") aktion=(g.art==="post"?btn("verschickt","✓ Verschickt","primary"):btn("abgeholt","✓ Abgeholt","primary"))+wa(gsBezahltText(g),"Zahlung bestätigen","wa");
     else if(st==="verschickt"||st==="abgeholt") aktion=btn("eingeloest","Eingelöst");
     if(!["eingeloest","storniert"].includes(st)) aktion+=btn("storniert","Storno");
+    const zurueck={bestaetigt:"neu",bezahlt:"bestaetigt",verschickt:"bezahlt",abgeholt:"bezahlt",eingeloest:g.art==="post"?"verschickt":"abgeholt",storniert:g.am_bestaetigt?"bestaetigt":"neu"}[st];
+    if(zurueck) aktion+=`<button class="btn ghost" type="button" data-gsback="${esc(g.id)}" data-st="${zurueck}">↩ Rückgängig</button>`;
     return `<div class="kitem${["eingeloest","storniert"].includes(st)?" bezahlt":""}"><div class="kl"><b>${esc(gsVZ(g))}</b> · <b>${esc(g.name)}</b> <span class="sub">${esc(g.telefon)}${g.email?" · "+esc(g.email):""}</span>
       <div>${g.anzahl}× ${gsEuro(g.wert)} = <b>${gsEuro(g.summe)}</b> · ${g.motiv==="neutral"?"ganzjährig":"Weihnachten"} · ${g.art==="post"?(g.an==="beschenkt"?"Post direkt an Beschenkten":"Post an Käufer"):"Abholung Rietberg"}</div>
       ${g.art==="post"?`<div class="sub">📮 ${esc(g.adresse)}</div>`:""}
@@ -2088,6 +2090,7 @@ function renderGutscheine(){
       <div class="sub">${esc(GS_ST[st]||st)} · bestellt ${esc(new Date(g.created).toLocaleDateString("de-DE"))}</div></div>
       <div class="kr">${aktion}</div></div>`}).join("");
   box.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const st=b.dataset.st;if(st==="storniert"&&!confirm("Gutschein-Bestellung stornieren?"))return;gsSetze(b.dataset.gs,{status:st,["am_"+st]:new Date().toISOString()})});
+  box.querySelectorAll("[data-gsback]").forEach(b=>b.onclick=()=>{if(!confirm(`Status zurück auf „${GS_ST[b.dataset.st]}“ setzen?`))return;gsSetze(b.dataset.gsback,{status:b.dataset.st})});
   box.querySelectorAll("[data-gsqr]").forEach(b=>b.onclick=()=>{const g=gutscheine.find(x=>x.id===b.dataset.gsqr);if(g)giroCodeTeilen(g,b)});
   box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{const g=gutscheine.find(x=>x.id===a.dataset.gswa);const vz=g&&!g.vz?{vz:gsVZ(g)}:{};
     if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString(),...vz});else if(vz.vz)gsSetze(a.dataset.gswa,vz)}));
