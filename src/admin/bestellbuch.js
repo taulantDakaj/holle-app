@@ -2058,6 +2058,12 @@ function gsBestaetText(g){
     `Bitte bezahle den Betrag per PayPal oder Überweisung mit dem Verwendungszweck:\n*${vz}*\n\n${zahl}\n\n`+
     (g.art==="post"?`Sobald das Geld da ist, schreiben wir den Gutschein von Hand und schicken ihn per Post an:\n${g.adresse}`:`Sobald das Geld da ist, liegt der Gutschein in Rietberg für dich bereit. Wann passt dir die Abholung?`)+`\n\n${SHOP_WA_TEXT_GRUSS}`;
 }
+function gsVerschicktText(g){
+  const direkt=g.an==="beschenkt";
+  return `Hallo ${vorname(g.name)}, dein ${gsVZ(g)} ist heute in die Post gegangen 📮🎁\n\n`+
+    (direkt?`Er geht direkt an ${g.fuer||"den Beschenkten"} und sollte in 2–3 Tagen ankommen.`:`Er sollte in 2–3 Tagen bei dir ankommen${g.fuer?` – dann kannst du ihn ${g.fuer} überreichen`:""}.`)+
+    `\n\nEingelöst wird er ganz einfach bei der Bestellung oder am Haltepunkt – einfach den Gutschein mitbringen.\nFalls er nach einer Woche noch nicht da ist, sag uns bitte kurz Bescheid.\n\n${SHOP_WA_TEXT_GRUSS}`;
+}
 function gsBezahltText(g){return `Hallo ${vorname(g.name)}, die Zahlung für deinen ${gsVZ(g)} ist angekommen – danke! 🎁\n`+(g.art==="post"?"Der Gutschein geht jetzt in die Post.":"Der Gutschein liegt in Rietberg für dich bereit.")+`\n\n${SHOP_WA_TEXT_GRUSS}`}
 async function gsSetze(id,patch){const g=gutscheine.find(x=>x.id===id);if(!g)return;const {id:_i,...d}=g;const neu={...d,...patch,updated:new Date().toISOString()};
   try{await window.__holle.db.doc("gutscheine/"+id).set(neu);Object.assign(g,patch);renderGutscheine();badge("#gs-n",gsOffenNeu())}catch(e){toast("Hat nicht geklappt.")}}
@@ -2077,7 +2083,7 @@ function renderGutscheine(){
     const qr=`<button class="btn ghost" type="button" data-gsqr="${esc(g.id)}">📷 GiroCode teilen</button>`;
     if(st==="neu") aktion=wa(gsBestaetText(g),"Bestätigen + Zahlungsdaten","wa","bestaetigt")+qr;
     else if(st==="bestaetigt") aktion=btn("bezahlt","✓ Bezahlt","primary")+wa(gsBestaetText(g),"Nochmal schreiben","ghost")+qr;
-    else if(st==="bezahlt") aktion=(g.art==="post"?btn("verschickt","✓ Verschickt","primary"):btn("abgeholt","✓ Abgeholt","primary"))+wa(gsBezahltText(g),"Zahlung bestätigen","wa");
+    else if(st==="bezahlt") aktion=(g.art==="post"?wa(gsVerschicktText(g),"✓ Verschickt + WhatsApp","wa","verschickt")+btn("verschickt","Verschickt ohne Nachricht"):btn("abgeholt","✓ Abgeholt","primary"))+wa(gsBezahltText(g),"Zahlung bestätigen","ghost");
     else if(st==="verschickt"||st==="abgeholt") aktion=btn("eingeloest","Eingelöst");
     if(!["eingeloest","storniert"].includes(st)) aktion+=btn("storniert","Storno");
     const zurueck={bestaetigt:"neu",bezahlt:"bestaetigt",verschickt:"bezahlt",abgeholt:"bezahlt",eingeloest:g.art==="post"?"verschickt":"abgeholt",storniert:g.am_bestaetigt?"bestaetigt":"neu"}[st];
@@ -2093,7 +2099,7 @@ function renderGutscheine(){
   box.querySelectorAll("[data-gsback]").forEach(b=>b.onclick=()=>{if(!confirm(`Status zurück auf „${GS_ST[b.dataset.st]}“ setzen?`))return;gsSetze(b.dataset.gsback,{status:b.dataset.st})});
   box.querySelectorAll("[data-gsqr]").forEach(b=>b.onclick=()=>{const g=gutscheine.find(x=>x.id===b.dataset.gsqr);if(g)giroCodeTeilen(g,b)});
   box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{const g=gutscheine.find(x=>x.id===a.dataset.gswa);const vz=g&&!g.vz?{vz:gsVZ(g)}:{};
-    if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString(),...vz});else if(vz.vz)gsSetze(a.dataset.gswa,vz)}));
+    if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,["am_"+a.dataset.st]:new Date().toISOString(),...vz});else if(vz.vz)gsSetze(a.dataset.gswa,vz)}));
 }
 
 /* ---------- Listen als PDF speichern / teilen ---------- */
