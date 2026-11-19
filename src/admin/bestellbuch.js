@@ -2074,8 +2074,9 @@ function renderGutscheine(){
     const btn=(k,l,cls="ghost")=>`<button class="btn ${cls}" type="button" data-gs="${esc(g.id)}" data-st="${k}">${l}</button>`;
     const wa=(t,l,cls,st2)=>`<a class="btn ${cls}" target="_blank" rel="noopener" data-gswa="${esc(g.id)}" data-st="${st2||""}" href="https://wa.me/${esc(waNum(g.telefon))}?text=${encodeURIComponent(t)}">${l}</a>`;
     let aktion="";
-    if(st==="neu") aktion=wa(gsBestaetText(g),"Bestätigen + Zahlungsdaten","wa","bestaetigt");
-    else if(st==="bestaetigt") aktion=btn("bezahlt","✓ Bezahlt","primary")+wa(gsBestaetText(g),"Nochmal schreiben","ghost");
+    const qr=`<button class="btn ghost" type="button" data-gsqr="${esc(g.id)}">📷 GiroCode teilen</button>`;
+    if(st==="neu") aktion=wa(gsBestaetText(g),"Bestätigen + Zahlungsdaten","wa","bestaetigt")+qr;
+    else if(st==="bestaetigt") aktion=btn("bezahlt","✓ Bezahlt","primary")+wa(gsBestaetText(g),"Nochmal schreiben","ghost")+qr;
     else if(st==="bezahlt") aktion=(g.art==="post"?btn("verschickt","✓ Verschickt","primary"):btn("abgeholt","✓ Abgeholt","primary"))+wa(gsBezahltText(g),"Zahlung bestätigen","wa");
     else if(st==="verschickt"||st==="abgeholt") aktion=btn("eingeloest","Eingelöst");
     if(!["eingeloest","storniert"].includes(st)) aktion+=btn("storniert","Storno");
@@ -2087,6 +2088,7 @@ function renderGutscheine(){
       <div class="sub">${esc(GS_ST[st]||st)} · bestellt ${esc(new Date(g.created).toLocaleDateString("de-DE"))}</div></div>
       <div class="kr">${aktion}</div></div>`}).join("");
   box.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const st=b.dataset.st;if(st==="storniert"&&!confirm("Gutschein-Bestellung stornieren?"))return;gsSetze(b.dataset.gs,{status:st,["am_"+st]:new Date().toISOString()})});
+  box.querySelectorAll("[data-gsqr]").forEach(b=>b.onclick=()=>{const g=gutscheine.find(x=>x.id===b.dataset.gsqr);if(g)giroCodeTeilen(g,b)});
   box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{const g=gutscheine.find(x=>x.id===a.dataset.gswa);const vz=g&&!g.vz?{vz:gsVZ(g)}:{};
     if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString(),...vz});else if(vz.vz)gsSetze(a.dataset.gswa,vz)}));
 }
@@ -2226,3 +2228,36 @@ function renderPartner(){
   };
   setTimeout(partnerLaden,800);
 })();
+
+/* ---------- GiroCode (EPC-QR) für Überweisungen ---------- */
+function bankDaten(){
+  const t=String(gsEinst.iban||""), zeilen=t.split(/\n+/).map(z=>z.trim()).filter(Boolean);
+  const iban=(t.match(/IBAN[: \t]*([A-Z]{2}\d{2}[0-9A-Z \t]{10,36})/i)||t.match(/\b([A-Z]{2}\d{2}(?:[ \t]?[0-9A-Z]{4}){3,7}(?:[ \t]?[0-9A-Z]{1,3})?)\b/)||[])[1];
+  const bic=(t.match(/BIC[:\s]*([A-Z0-9]{8,11})/i)||[])[1]||"";
+  const name=zeilen.find(z=>!/IBAN|BIC|bank/i.test(z))||"";
+  return {name:name.slice(0,70),iban:iban?iban.replace(/\s+/g,"").toUpperCase():"",bic:bic.toUpperCase(),bank:zeilen.find(z=>/bank|sparkasse/i.test(z))||""};
+}
+async function giroCodeTeilen(g,btn){
+  const b=bankDaten(); if(!b.iban||!b.name){toast("Bitte zuerst Kontoinhaber und IBAN bei den Gutschein-Einstellungen eintragen.");return}
+  const vz=gsVZ(g), betrag=(+g.summe||0).toFixed(2);
+  const epc=["BCD","002","1","SCT",b.bic,b.name,b.iban,"EUR"+betrag,"","",vz,""].join("\n");
+  const alt=btn.textContent; btn.disabled=true; btn.textContent="Wird erstellt …";
+  try{
+    const QR=(await import("qrcode")).default;
+    const qr=document.createElement("canvas"); await QR.toCanvas(qr,epc,{errorCorrectionLevel:"M",margin:0,width:520});
+    const W=720,H=1000,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+    x.fillStyle="#fff";x.fillRect(0,0,W,H);
+    x.fillStyle="#7d1a12";x.fillRect(0,0,W,120);
+    x.fillStyle="#fff";x.font="bold 40px system-ui,sans-serif";x.textAlign="center";x.fillText("Überweisen per Code",W/2,62);
+    x.font="24px system-ui,sans-serif";x.fillText("Mit der Banking-App scannen – alles ist ausgefüllt",W/2,100);
+    x.drawImage(qr,(W-520)/2,160);
+    x.fillStyle="#111";x.textAlign="left";let y=740;
+    const z=(l,v,bold)=>{x.font="22px system-ui,sans-serif";x.fillStyle="#666";x.fillText(l,70,y);x.font=(bold?"bold ":"")+"28px system-ui,sans-serif";x.fillStyle="#111";x.fillText(v,260,y);y+=48};
+    z("Betrag",gsEuro(g.summe),true); z("Zweck",vz,true); z("Empfänger",b.name); z("IBAN",b.iban.replace(/(.{4})/g,"$1 ").trim());
+    x.font="20px system-ui,sans-serif";x.fillStyle="#888";x.textAlign="center";x.fillText("Geflügelverkauf Holle · @gefluegelholle",W/2,H-30);
+    const blob=await new Promise(r=>c.toBlob(r,"image/png")), datei=vz.replace(/\s+/g,"_")+"_GiroCode.png", file=new File([blob],datei,{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:vz})}catch(e){if(e&&e.name!=="AbortError")throw e}}
+    else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=datei;document.body.appendChild(a);a.click();a.remove();toast("GiroCode gespeichert")}
+  }catch(e){toast("GiroCode fehlgeschlagen: "+(e.message||e))}
+  btn.disabled=false;btn.textContent=alt;
+}
