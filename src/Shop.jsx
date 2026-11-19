@@ -41,6 +41,20 @@ export default function Shop() {
   const [terminKey, setTerminKey] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [form, setForm] = useState({ customer_name: '', phone: '', city: '', customer_note: '', website: '' });
+  const [code, setCode] = useState(() => {
+    const m = location.search.match(/[?&]code=([A-Za-z0-9]{3,30})/) || location.hash.match(/[?&]code=([A-Za-z0-9]{3,30})/);
+    try { if (m) localStorage.setItem('holle-code', m[1].toUpperCase()); return (m ? m[1] : localStorage.getItem('holle-code') || '').toUpperCase(); } catch { return m ? m[1].toUpperCase() : ''; }
+  });
+  const [partner, setPartner] = useState(null);
+  useEffect(() => {
+    const c = code.trim();
+    if (c.length < 3) { setPartner(null); return; }
+    const t = setTimeout(async () => {
+      const { data: r } = await supabase.rpc('partner_check', { p_code: c });
+      setPartner(r || false);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [code]);
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);
@@ -126,13 +140,14 @@ export default function Shop() {
       tour: pickupType === 'tour' ? termin.tour : 'R',
       ort: pickupType === 'tour' ? termin.ort : 'Rietberg Hof',
       items: chosen.map((c) => ({ product_id: c.p.id, qty: c.n, hahn: c.hahn, ...(c.wunsch ? { wunsch_id: c.wunsch } : {}) })),
+      ...(partner ? { code: partner.code } : {}),
     };
     const { data: res, error } = await supabase.rpc('submit_order', { p: payload });
     setSending(false);
     if (error) return setErr(error.message || 'Bestellung konnte nicht gesendet werden.');
     setDone({
       ...res,
-      summary: chosen.map((c) => `${c.n}× ${c.label}`).join('\n'),
+      summary: chosen.map((c) => `${c.n}× ${c.label}`).join('\n') + (partner && partner.rabatt > 0 ? `\nCode ${partner.code}: −${fmtPrice(partner.rabatt * total)}` : ''),
       where: pickupType === 'tour'
         ? `${termin.ort}, ${fmtDate(termin.datum)}${termin.zeit ? ', ' + termin.zeit + ' Uhr' : ''}`
         : `Rietberg, Wunschtermin ${fmtDate(pickupDate)}`,
@@ -254,6 +269,12 @@ export default function Shop() {
             <label>Handynummer (WhatsApp)<input required type="tel" autoComplete="tel" value={form.phone} onChange={upd('phone')} /></label>
             <label>Wohnort<input autoComplete="address-level2" value={form.city} onChange={upd('city')} /></label>
             <label>Anmerkung (optional)<textarea rows="3" value={form.customer_note} onChange={upd('customer_note')} /></label>
+            <details className="codefeld" open={!!code}>
+              <summary>Hast du einen Code?</summary>
+              <label>Code<input value={code} onChange={(e) => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); setCode(v); try { localStorage.setItem('holle-code', v); } catch {} }} placeholder="z. B. von einem Partnerhof" autoCapitalize="characters" autoComplete="off" /></label>
+              {partner && <p className="codeok">✓ Code von {partner.name}{partner.rabatt > 0 ? ` – du sparst ${fmtPrice(partner.rabatt)} pro Tier${total ? ` (hier ${fmtPrice(partner.rabatt * total)})` : ''}.` : '.'}</p>}
+              {partner === false && code.length >= 3 && <p className="codefalsch">Diesen Code kennen wir nicht.</p>}
+            </details>
             <input className="hp" tabIndex="-1" autoComplete="off" value={form.website} onChange={upd('website')} aria-hidden="true" />
             <label className="check">
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />

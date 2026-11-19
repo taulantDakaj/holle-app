@@ -87,7 +87,7 @@ const brutto=o=>(o.positionen||[]).reduce((a,p)=>a+(+p.anzahl||0)*(+p.preis||0),
 // Rabatt: {art:"prozent"|"euro", wert}
 function rabattEur(o){const r=o&&o.rabatt, b=brutto(o); if(!r||!(+r.wert>0)||!b) return 0;
   return Math.min(b, r.art==="prozent"?Math.round(b*(+r.wert)/100*100)/100:+r.wert)}
-const rabattText=o=>{const r=o&&o.rabatt;if(!rabattEur(o))return"";return r.art==="prozent"?`${String(+r.wert).replace(".",",")} % Rabatt`:"Rabatt"};
+const rabattText=o=>{const r=o&&o.rabatt;if(!rabattEur(o))return"";if(r.grund)return r.grund;return r.art==="prozent"?`${String(+r.wert).replace(".",",")} % Rabatt`:"Rabatt"};
 const betrag=o=>Math.max(0,brutto(o)-rabattEur(o));
 const tierText=(o,sep)=>(o.positionen||[]).filter(p=>p.tier&&+p.anzahl).map(p=>`${p.anzahl} × ${p.tier}`).join(sep);
 function rhythmInfo(dateStr){
@@ -194,6 +194,7 @@ function editOrder(id){
   $("#f-kunde").value=o.kunde||"";$("#f-tel").value=o.telefon||"";$("#f-wohnort").value=o.wohnort||"";
   $("#f-datum").value=o.datum||"";fTour.value=o.tour;fillOrte(o.ort);$("#f-adresse").value=o.adresse||"";$("#f-status").value=o.status||"offen";$("#f-bem").value=o.bemerkung||"";
   $("#posList").innerHTML="";(o.positionen&&o.positionen.length?o.positionen:[{}]).forEach(addPos);
+  if($("#f-partner")){partnerOptionen(o.partner);$("#f-partner").value=o.partner||"";}
   $("#f-rabatt-art").value=o.rabatt&&o.rabatt.art||"";$("#f-rabatt").value=o.rabatt&&o.rabatt.wert?String(o.rabatt.wert).replace(".",","):"";
   $("#f-rhythm").innerHTML=rhythmInfo(o.datum);
   $("#formTitle").textContent="Bestellung bearbeiten: "+(o.kunde||"");$("#saveBtn").textContent="Änderungen speichern";
@@ -219,6 +220,11 @@ $("#form").addEventListener("submit",async e=>{
     datum:$("#f-datum").value,tour:fTour.value,ort:fOrt.value,adresse:fOrt.value===HOME?$("#f-adresse").value.trim():"",positionen:pos,status:$("#f-status").value,
     bemerkung:$("#f-bem").value.trim(),created:old?.created||now,updated:now};
   const rb=readRabatt(); if(rb) o.rabatt=rb; else delete o.rabatt;
+  const pc=$("#f-partner")?$("#f-partner").value:"";
+  if(pc){o.partner=pc; const pa=(window.__partner||[]).find(x=>x.code===pc);
+    // Rabatt automatisch, wenn keiner von Hand gesetzt ist bzw. der alte Code-Rabatt war
+    if(pa&&+pa.rabatt_pro_tier>0&&(!rb||(old&&old.rabatt&&old.rabatt.grund))) o.rabatt={art:"euro",wert:+pa.rabatt_pro_tier*stueck(o),grund:`Code ${pa.code} (${String(+pa.rabatt_pro_tier).replace(".",",")} € je Tier)`};}
+  else { delete o.partner; if(o.rabatt&&o.rabatt.grund&&/^Code /.test(o.rabatt.grund)) delete o.rabatt; }
   if(old?.beispiel) o.beispiel=true;if(old?.quelle) o.quelle=old.quelle;
   $("#saveBtn").disabled=true;
   try{await saveOrder(editId,o);lastDate=o.datum;lastTour=o.tour;lastOrt=o.ort;toast(editId?"Änderungen gespeichert":`Gespeichert: ${o.kunde}, ${stueck(o)} Tiere`);resetForm()}
@@ -258,7 +264,7 @@ function renderList(){
   $("#l-body").innerHTML=rows.length?rows.map(o=>{const tr=tourById(o.tour);return `<tr class="row" data-id="${esc(o.id)}" tabindex="0">
     <td style="white-space:nowrap">${esc(dShort(o.datum))}</td>
     <td><span class="tourtag">${esc(tr?tr.nr:o.tour)}</span><br><span class="odot" style="background:${ortFarbe(o.ort)}"></span>${esc(o.ort)}${o.adresse?`<br><span class="sub">${esc(o.adresse)}</span>`:""}</td>
-    <td><b>${esc(o.kunde)}</b>${o.beispiel?' <span class="chip bsp">Beispiel</span>':""}<br><span class="sub">${esc(o.telefon)}</span></td>
+    <td><b>${esc(o.kunde)}</b>${o.beispiel?' <span class="chip bsp">Beispiel</span>':""}${o.partner?` <span class="chip neu">🤝 ${esc(o.partner)}</span>`:""}<br><span class="sub">${esc(o.telefon)}</span></td>
     <td>${esc(tierText(o,", "))}${o.bemerkung?`<br><span class="sub">${esc(o.bemerkung)}</span>`:""}</td>
     <td class="num">${stueck(o)}</td><td class="num">${betrag(o)?eur(betrag(o)):"–"}</td>
     <td><span class="chip ${esc(o.status)}">${esc(o.status||"offen")}</span></td></tr>`}).join("")
@@ -704,6 +710,7 @@ function renderReminder(){
 
 /* ---------- Gesamt-Render ---------- */
 function renderAll(){
+  try{if(window.__partner)renderPartner()}catch(e){}
   $("#cnt").textContent=orders.filter(o=>o.status!=="storniert"&&!istAlt(o)).length;
   const names=[...new Set(orders.map(o=>o.kunde).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"de"));
   $("#dl-kunden").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
@@ -2123,4 +2130,84 @@ async function listeAlsPdf(paperSel,name,btn){
   if(b=$("#o-pdf")) b.onclick=function(){listeAlsPdf("#o-paper","Bestellliste_"+($("#o-von").value||"alle")+"_bis_"+($("#o-bis").value||"offen"),this)};
   if(b=$("#f2-pdf")) b.onclick=function(){var d=$("#f2-datum")?$("#f2-datum").value:"";listeAlsPdf("#f2-paper","Fahrplan_"+d,this)};
   if(b=$("#l-pdf")) b.onclick=function(){var d=$("#p-datum").value,t=$("#p-tour").value,tr=t?tourById(t):null;listeAlsPdf("#paper","Ladeliste_"+d+(tr?"_"+tr.nr.replace(/\s/g,""):""),this)};
+})();
+
+/* ---------- Partner-Codes (Kooperationen) ---------- */
+function partnerOptionen(akt){
+  var sel=$("#f-partner"); if(!sel) return;
+  var ps=window.__partner||[];
+  sel.innerHTML='<option value="">kein Code</option>'+ps.filter(function(p){return p.aktiv||p.code===akt}).map(function(p){return `<option value="${esc(p.code)}">${esc(p.code)} – ${esc(p.name)}</option>`}).join("")+
+    (akt&&!ps.some(function(p){return p.code===akt})?`<option value="${esc(akt)}">${esc(akt)}</option>`:"");
+}
+var PA_BASIS="https://bestellen.gefluegelverkauf-holle.de/";
+function paZahlen(code){
+  var os=(typeof orders!=="undefined"?orders:[]).filter(function(o){return o.partner===code});
+  var abg=os.filter(function(o){return o.status==="abgeholt"}).reduce(function(a,o){return a+stueck(o)},0);
+  var off=os.filter(function(o){return o.status!=="abgeholt"&&o.status!=="storniert"}).reduce(function(a,o){return a+stueck(o)},0);
+  return {n:os.length,abg:abg,off:off,os:os};
+}
+async function partnerLaden(){
+
+  try{
+    var r=await SB.from("partner").select("*").order("created"); if(r.error) throw r.error;
+    var e=await SB.from("partner_einloesung").select("*").order("datum");
+    window.__partner=r.data||[]; window.__partnerEin=e.data||[];
+  }catch(err){window.__partner=window.__partner||[];window.__partnerEin=window.__partnerEin||[]}
+  partnerOptionen($("#f-partner")&&$("#f-partner").value); renderPartner();
+}
+function monatsText(p){
+  var z=paZahlen(p.code), ein=(window.__partnerEin||[]).filter(function(e){return e.code===p.code});
+  var eing=ein.reduce(function(a,e){return a+ +e.betrag},0), verd=z.abg*+p.provision_pro_tier;
+  var jetzt=new Date(), mon=jetzt.toISOString().slice(0,7), monName=jetzt.toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+  var abgMon=z.os.filter(function(o){return o.status==="abgeholt"&&String(o.datum).slice(0,7)===mon}).reduce(function(a,o){return a+stueck(o)},0);
+  return `Hallo ${p.name.split(" ")[0]}, hier eure Übersicht für ${monName} 🐔\n\n`+
+    `• Bestellungen mit eurem Code bisher: ${z.n}\n• Abgeholt im ${jetzt.toLocaleDateString("de-DE",{month:"long"})}: ${abgMon} Tiere\n• Abgeholt insgesamt: ${z.abg} Tiere\n• Noch offen: ${z.off} Tiere\n\n`+
+    `Verdient: ${eur(verd)}${eing?`\nBereits eingelöst: ${eur(eing)}`:""}\n*Euer Guthaben: ${eur(verd-eing)}*\n\n`+
+    `Alles live und im Detail: ${PA_BASIS}#/p/${p.token}\n\nViele Grüße\nTaulant · Geflügelverkauf Holle`;
+}
+function renderPartner(){
+  var box=$("#pa-list"); if(!box) return;
+  var ps=window.__partner||[];
+  if(!ps.length){box.innerHTML='<p class="sub">Noch keine Partner angelegt.</p>';return}
+  box.innerHTML=ps.map(function(p){
+    var z=paZahlen(p.code), ein=(window.__partnerEin||[]).filter(function(e){return e.code===p.code}), eing=ein.reduce(function(a,e){return a+ +e.betrag},0);
+    var verd=z.abg*+p.provision_pro_tier, bl=PA_BASIS+"?code="+p.code, pl=PA_BASIS+"#/p/"+p.token;
+    return `<div class="card" style="margin:8px 0;padding:12px" data-code="${esc(p.code)}">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${esc(p.name)} · ${esc(p.code)}</b><span class="chip ${p.aktiv?"neu":""}">${p.aktiv?"aktiv":"pausiert"}</span></div>
+      <div class="sub" style="margin:4px 0 8px">Kunden sparen ${eur(+p.rabatt_pro_tier)} je Tier · Partner bekommt ${eur(+p.provision_pro_tier)} je abgeholtem Tier</div>
+      <div class="sub">${z.n} Bestellungen · ${z.abg} Tiere abgeholt · ${z.off} offen<br><b>Guthaben ${eur(verd-eing)}</b> (verdient ${eur(verd)}${eing?", eingelöst "+eur(eing):""})</div>
+      <div class="sub" style="margin-top:8px;word-break:break-all">Bestell-Link: ${esc(bl)}<br>Partner-Übersicht: ${esc(pl)}</div>
+      <div class="btns" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+        <button class="btn ghost" type="button" data-pa="bl">Bestell-Link kopieren</button>
+        <button class="btn ghost" type="button" data-pa="pl">Übersicht-Link kopieren</button>
+        <a class="btn ghost" href="${esc(pl)}" target="_blank" rel="noopener">Übersicht ansehen</a>
+        <button class="btn ghost" type="button" data-pa="mon">Monatsübersicht per WhatsApp</button>
+        <button class="btn ghost" type="button" data-pa="ein">Guthaben einlösen</button>
+        <button class="btn ghost" type="button" data-pa="akt">${p.aktiv?"Pausieren":"Aktivieren"}</button>
+      </div>
+      ${ein.length?`<div class="sub" style="margin-top:6px">Eingelöst: ${ein.map(function(e){return esc(dShort(e.datum)+" "+eur(+e.betrag)+(e.notiz?" ("+e.notiz+")":""))}).join(" · ")}</div>`:""}
+    </div>`}).join("");
+  box.querySelectorAll("[data-pa]").forEach(function(b){b.onclick=async function(){
+    var code=b.closest("[data-code]").dataset.code, p=ps.find(function(x){return x.code===code}), was=b.dataset.pa;
+    var kopiere=async function(t){try{await navigator.clipboard.writeText(t);toast("Kopiert")}catch(e){prompt("Kopieren:",t)}};
+    if(was==="bl") return kopiere(PA_BASIS+"?code="+p.code);
+    if(was==="pl") return kopiere(PA_BASIS+"#/p/"+p.token);
+    if(was==="mon") return void window.open("https://wa.me/?text="+encodeURIComponent(monatsText(p)),"_blank");
+    if(was==="akt"){var r=await SB.from("partner").update({aktiv:!p.aktiv}).eq("code",p.code); if(r.error) return toast(r.error.message); return partnerLaden();}
+    if(was==="ein"){var v=prompt("Wie viel Guthaben wird eingelöst? (€)",""); if(!v) return; var betrag=parseFloat(String(v).replace(",",".")); if(!(betrag>0)) return toast("Ungültiger Betrag");
+      var notiz=prompt("Wofür? (z. B. Aufstockung 10 Hennen)","")||null;
+      var r2=await SB.from("partner_einloesung").insert({code:p.code,betrag:betrag,notiz:notiz}); if(r2.error) return toast(r2.error.message); toast("Eingelöst: "+eur(betrag)); return partnerLaden();}
+  }});
+}
+(function(){
+  var add=$("#pa-add"); if(!add) return;
+  add.onclick=async function(){
+    var name=$("#pa-name").value.trim(), code=$("#pa-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+    var rab=parseFloat($("#pa-rabatt").value.replace(",","."))||0, prov=parseFloat($("#pa-prov").value.replace(",","."))||0;
+    if(name.length<2||code.length<3){toast("Bitte Name und Code (mind. 3 Zeichen) angeben.");return}
+    var r=await SB.from("partner").insert({name:name,code:code,rabatt_pro_tier:rab,provision_pro_tier:prov});
+    if(r.error){toast(/duplicate/.test(r.error.message)?"Diesen Code gibt es schon.":r.error.message);return}
+    $("#pa-name").value="";$("#pa-code").value=""; toast("Partner angelegt"); partnerLaden();
+  };
+  setTimeout(partnerLaden,800);
 })();

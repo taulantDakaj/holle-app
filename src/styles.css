@@ -316,3 +316,20 @@ body.printing .topbar, body.printing .fab { display: none !important; }
 .gs-chips button { min-height: 44px; min-width: 64px; padding: 0 14px; border-radius: 99px; border: 2px solid var(--line); background: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; color: inherit; }
 .gs-chips button.on { border-color: var(--red); background: var(--red); color: #fff; }
 .gs-anzahl { margin-top: 10px; }
+
+.codefeld { margin: .4rem 0 .8rem; }
+.codefeld summary { cursor: pointer; color: var(--accent, #9c2b1f); font-weight: 600; padding: .3rem 0; }
+.codeok { color: #2e7d32; font-weight: 600; margin: .3rem 0 0; }
+.codefalsch { color: #c62828; margin: .3rem 0 0; }
+.partner .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; margin: .8rem 0; }
+.partner .kpis div { background: #fbf6f2; border-radius: 12px; padding: .7rem; text-align: center; }
+.partner .kpis b { display: block; font-size: 1.5rem; }
+.partner .kpis span { font-size: .85rem; color: #666; }
+.partner .kpis .gut { background: #2e7d32; color: #fff; grid-column: 1 / -1; }
+.partner .kpis .gut span { color: #e8f5e9; }
+.partner table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.partner td, .partner th { padding: .45rem .3rem; border-bottom: 1px solid #eee; text-align: left; }
+.partner th { font-size: .78rem; text-transform: uppercase; color: #777; }
+.partner .st { font-size: .78rem; padding: .1rem .45rem; border-radius: 99px; background: #eee; white-space: nowrap; }
+.partner .st.abgeholt { background: #e8f5e9; color: #2e7d32; }
+.partner .st.storniert { background: #fdecea; color: #c62828; }

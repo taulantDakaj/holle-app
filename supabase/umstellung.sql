@@ -1041,3 +1041,118 @@ language sql stable security definer set search_path = public as $$
       where f.aktiv and f.datum >= current_date and f.datum <= current_date + 150), '[]'::json)
   );
 $$;
+
+-- Partner-Codes (z. B. KUCKUCKSHOF): Rabatt für Kunden, Guthaben für Partner, Live-Übersicht per Link
+create table if not exists partner (
+  code text primary key check (code ~ '^[A-Z0-9]{3,30}$'),
+  name text not null,
+  rabatt_pro_tier numeric not null default 1,
+  provision_pro_tier numeric not null default 1,
+  token text not null unique default replace(gen_random_uuid()::text, '-', ''),
+  aktiv boolean not null default true,
+  start date,
+  created timestamptz not null default now()
+);
+create table if not exists partner_einloesung (
+  id bigint generated always as identity primary key,
+  code text not null references partner(code) on delete cascade,
+  datum date not null default current_date,
+  betrag numeric not null check (betrag > 0),
+  notiz text,
+  created timestamptz not null default now()
+);
+alter table partner enable row level security;
+alter table partner_einloesung enable row level security;
+drop policy if exists staff_all on partner;
+create policy staff_all on partner for all to authenticated using (is_staff()) with check (is_staff());
+drop policy if exists staff_all on partner_einloesung;
+create policy staff_all on partner_einloesung for all to authenticated using (is_staff()) with check (is_staff());
+
+-- Code im Shop prüfen
+create or replace function partner_check(p_code text) returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object('code', code, 'name', name, 'rabatt', rabatt_pro_tier)
+  from partner where code = upper(trim(coalesce(p_code,''))) and aktiv;
+$$;
+grant execute on function partner_check(text) to anon, authenticated;
+
+-- Bestellung: Basis bleibt, Partnercode wird danach angehängt
+do $$ begin
+  if not exists (select 1 from pg_proc where proname = 'submit_order_basis') then
+    alter function submit_order(jsonb) rename to submit_order_basis;
+  end if;
+end $$;
+revoke all on function submit_order_basis(jsonb) from public, anon, authenticated;
+
+create or replace function submit_order(p jsonb) returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  r json;
+  v_p partner%rowtype;
+  v_n int;
+begin
+  r := submit_order_basis(p);
+  if coalesce(trim(p->>'code'), '') <> '' then
+    select * into v_p from partner where code = upper(trim(p->>'code')) and aktiv;
+    if found then
+      update bb_docs set data = data || jsonb_build_object(
+          'partner', v_p.code,
+          'rabatt', case when v_p.rabatt_pro_tier > 0 then jsonb_build_object('art', 'euro',
+            'wert', v_p.rabatt_pro_tier * (select coalesce(sum((e->>'anzahl')::int), 0) from jsonb_array_elements(data->'positionen') e),
+            'grund', 'Code ' || v_p.code || ' (' || replace(v_p.rabatt_pro_tier::text, '.', ',') || ' € je Tier)') end)
+        where coll = 'orders' and id = r->>'id';
+    end if;
+  end if;
+  return r;
+end $$;
+revoke all on function submit_order(jsonb) from public;
+grant execute on function submit_order(jsonb) to anon, authenticated;
+
+-- Live-Übersicht für den Partner (nur über den geheimen Link)
+create or replace function partner_uebersicht(p_token text) returns json
+language sql stable security definer set search_path = public as $$
+  with pt as (select * from partner where token = p_token and length(p_token) >= 20),
+  o as (
+    select d.data, d.id,
+      (select coalesce(sum((e->>'anzahl')::int), 0) from jsonb_array_elements(coalesce(d.data->'positionen','[]'::jsonb)) e) as tiere
+    from bb_docs d, pt where d.coll = 'orders' and d.data->>'partner' = pt.code
+  ),
+  zeilen as (
+    select json_agg(json_build_object(
+      'bestellt', o.data->>'created',
+      'datum', o.data->>'datum',
+      'kunde', split_part(trim(o.data->>'kunde'), ' ', 1) ||
+               case when position(' ' in trim(o.data->>'kunde')) > 0
+                    then ' ' || left(split_part(trim(o.data->>'kunde'), ' ', array_length(regexp_split_to_array(trim(o.data->>'kunde'), '\s+'), 1)), 1) || '.' else '' end,
+      'tiere', o.tiere,
+      'status', o.data->>'status',
+      'abgeholt', case when o.data->>'status' = 'abgeholt' then o.tiere else 0 end)
+      order by o.data->>'created' desc) as liste,
+      coalesce(sum(case when o.data->>'status' = 'abgeholt' then o.tiere else 0 end), 0) as abgeholt,
+      coalesce(sum(case when o.data->>'status' not in ('storniert','abgeholt') then o.tiere else 0 end), 0) as offen,
+      count(*) as anzahl
+    from o
+  ),
+  monate as (
+    select json_agg(json_build_object('monat', m, 'abgeholt', n) order by m) as liste from (
+      select left(o.data->>'datum', 7) m, sum(o.tiere) n from o where o.data->>'status' = 'abgeholt' group by 1) x
+  ),
+  ein as (
+    select coalesce(sum(betrag), 0) as summe,
+      json_agg(json_build_object('datum', datum, 'betrag', betrag, 'notiz', notiz) order by datum) as liste
+    from partner_einloesung e, pt where e.code = pt.code
+  )
+  select json_build_object(
+    'name', pt.name, 'code', pt.code, 'aktiv', pt.aktiv,
+    'rabatt', pt.rabatt_pro_tier, 'provision', pt.provision_pro_tier,
+    'bestellungen', coalesce(zeilen.liste, '[]'::json),
+    'anzahl', zeilen.anzahl, 'abgeholt', zeilen.abgeholt, 'offen', zeilen.offen,
+    'verdient', zeilen.abgeholt * pt.provision_pro_tier,
+    'eingeloest', ein.summe,
+    'guthaben', zeilen.abgeholt * pt.provision_pro_tier - ein.summe,
+    'einloesungen', coalesce(ein.liste, '[]'::json),
+    'monate', coalesce(monate.liste, '[]'::json),
+    'stand', now())
+  from pt, zeilen, monate, ein;
+$$;
+grant execute on function partner_uebersicht(text) to anon, authenticated;
