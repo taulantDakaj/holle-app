@@ -1858,73 +1858,71 @@ function igTouren(){
     const stops=t.stops.filter(s=>s[1]!==HOME&&(!f.nur_orte||!f.nur_orte.length||f.nur_orte.includes(s[1]))).map(s=>[z[s[1]]||s[0],s[1],s[2]]).sort((a,b)=>Object.keys(z).length?String(a[0]).localeCompare(String(b[0])):0);
     return {nr:t.nr,name:t.name,stops,hinweis:f.hinweis||""}}).filter(Boolean);
 }
-function igText(ctx,text,x,y,maxW){ // *Wort* in Hellrot
+function igText(ctx,text,x,y,maxW,hell){ // *Wort* hervorgehoben
+  const farbe=hell||IG_ROT;
   const teile=text.split(/(\*[^*]+\*)/).filter(Boolean).map(t=>t.startsWith("*")?{t:t.slice(1,-1),rot:true}:{t,rot:false});
   const woerter=[]; teile.forEach(p=>p.t.split(/(\s+)/).filter(w=>w!=="").forEach(w=>woerter.push({w,rot:p.rot})));
   const zeilen=[[]]; let breite=0;
   woerter.forEach(w=>{const b=ctx.measureText(w.w).width; if(breite+b>maxW&&zeilen[zeilen.length-1].length&&w.w.trim()){zeilen.push([]);breite=0} if(!w.w.trim()&&!zeilen[zeilen.length-1].length)return; zeilen[zeilen.length-1].push(w);breite+=b});
   const lh=parseInt(ctx.font.match(/(\d+)px/)[1])*1.12;
-  zeilen.forEach((z,i)=>{let xx=x;z.forEach(w=>{ctx.fillStyle=w.rot?IG_ROT:"#fff";ctx.fillText(w.w,xx,y+i*lh);xx+=ctx.measureText(w.w).width})});
+  zeilen.forEach((z,i)=>{let xx=x;z.forEach(w=>{ctx.fillStyle=w.rot?farbe:"#fff";ctx.fillText(w.w,xx,y+i*lh);xx+=ctx.measureText(w.w).width})});
   return y+zeilen.length*lh;
 }
+// Tour-Beiträge im grünen „Tour-Update“-Stil
+const IG_GELB="#ffd54a", IG_TOURFARBEN=["#2e7d32","#1f5bb5","#c26a00","#7b3fa0","#00838f","#ad1457"];
 function igMalen(){
   const c=$("#ig-canvas"); if(!c) return;
-  const story=$("#ig-format").value==="story", W=1080, H=story?1920:1350, P=72;
+  const story=$("#ig-format").value==="story", W=1080, H=story?1920:1350, P=64;
   c.width=W; c.height=H; const g=c.getContext("2d");
-  // Hintergrund
-  if(igFoto){const s=Math.max(W/igFoto.width,H/igFoto.height),w=igFoto.width*s,h=igFoto.height*s;g.drawImage(igFoto,(W-w)/2,(H-h)/2,w,h)}
-  else{const bg=g.createLinearGradient(0,0,W,H);bg.addColorStop(0,"#3b0a0f");bg.addColorStop(1,"#120304");g.fillStyle=bg;g.fillRect(0,0,W,H)}
-  // Kopfblock oben
+  // Hintergrund: Foto oder Grün
+  if(igFoto){const sc=Math.max(W/igFoto.width,H/igFoto.height),w=igFoto.width*sc,h=igFoto.height*sc;g.drawImage(igFoto,(W-w)/2,(H-h)/2,w,h)}
+  else{const bg=g.createLinearGradient(0,0,W,H);bg.addColorStop(0,"#2c5e34");bg.addColorStop(1,"#10301a");g.fillStyle=bg;g.fillRect(0,0,W,H)}
+  // Kopf
   g.textBaseline="top";
-  g.font="800 86px Outfit, sans-serif";
   const titel=$("#ig-titel").value||"", sub=$("#ig-sub").value||"";
-  const kopfY=story?150:70;
+  const kopfY=story?150:64;
+  g.font="800 92px Outfit, sans-serif";
   const mess=document.createElement("canvas").getContext("2d"); mess.font=g.font;
-  const zeilen=Math.max(1,Math.ceil(mess.measureText(titel.replace(/\*/g,"")).width/(W-P*2-150)));
-  const kopfH=kopfY+70+zeilen*96+30+(sub?60:0)+60;
-  const kg=g.createLinearGradient(0,0,0,kopfH); kg.addColorStop(0,"rgba(110,8,16,.97)"); kg.addColorStop(1,"rgba(60,4,9,.90)");
-  g.fillStyle=kg; g.fillRect(0,0,W,kopfH);
-  g.font="600 30px Outfit, sans-serif"; g.fillStyle=IG_ROT; g.fillText("TOURTERMINE",P,kopfY);
-  g.font="800 86px Outfit, sans-serif"; let y=igText(g,titel,P,kopfY+52,W-P*2-150);
-  g.fillStyle="#e53935"; g.fillRect(P,y+14,160,10); y+=46;
-  if(sub){g.font="400 40px Outfit, sans-serif";g.fillStyle="rgba(255,255,255,.92)";g.fillText(sub,P,y)}
-  // Logo-Abzeichen
+  const zeilen=Math.max(1,Math.ceil(mess.measureText(titel.replace(/\*/g,"")).width/(W-P*2-170)));
+  const kopfH=kopfY+86+zeilen*103+34+(sub?62:0)+40;
+  const kg=g.createLinearGradient(0,0,0,kopfH+60); kg.addColorStop(0,"rgba(16,58,30,.97)"); kg.addColorStop(.75,"rgba(16,58,30,.82)"); kg.addColorStop(1,"rgba(16,58,30,0)");
+  g.fillStyle=kg; g.fillRect(0,0,W,kopfH+60);
+  // gelbe Pille
+  g.font="700 32px Outfit, sans-serif"; const pt="Tour-Update", pw=g.measureText(pt).width+48;
+  g.fillStyle="#f0b323"; rundRect(g,P,kopfY,pw,58,29); g.fill(); g.fillStyle="#fff"; g.fillText(pt,P+24,kopfY+12);
+  g.font="800 92px Outfit, sans-serif"; let y=igText(g,titel,P,kopfY+86,W-P*2-170,IG_GELB);
+  g.fillStyle=IG_GELB; rundRect(g,P,y+8,190,12,6); g.fill(); y+=50;
+  if(sub){g.font="500 40px Outfit, sans-serif";g.fillStyle="rgba(255,255,255,.92)";g.fillText(sub,P,y)}
+  // Logo
   const lg=$("#ig-canvas")._logo;
-  if(lg){const r=62,cx=W-P-r+10,cy=kopfY+r-4;g.save();g.beginPath();g.arc(cx,cy,r+6,0,Math.PI*2);g.fillStyle="#fff";g.fill();g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);g.clip();g.drawImage(lg,cx-r,cy-r,r*2,r*2);g.restore()}
+  if(lg){const r=70,cx=W-P-r+6,cy=kopfY+r+4;g.save();g.beginPath();g.arc(cx,cy,r+8,0,Math.PI*2);g.fillStyle="#fff";g.fill();g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);g.clip();g.drawImage(lg,cx-r,cy-r,r*2,r*2);g.restore()}
   else{const i=new Image();i.onload=()=>{c._logo=i;igMalen()};i.src="./logo.png"}
-  // Haltepunkte: erst Zeilen sammeln, dann auf 1 oder 2 Spalten verteilen
-  const touren=igTouren(), items=[];
-  touren.forEach((t,ti)=>{items.push({art:"kopf",t:`${t.nr} · ${t.name}`.toUpperCase(),h:1.2,tour:ti});
-    t.stops.forEach(st=>items.push({art:"halt",zeit:st[0]||"",ort:st[1],h:1,tour:ti}));
-    if(t.hinweis) items.push({art:"hinweis",t:t.hinweis,h:1,tour:ti});
-    items.push({art:"luecke",h:.35,tour:ti});});
-  while(items.length&&items[items.length-1].art==="luecke") items.pop();
-  const fussH=110, platzY=kopfH+40, platzH=H-platzY-fussH-30-48;
-  const summe=items.reduce((a,x)=>a+x.h,0);
-  let spalten=[items];
-  if(summe*52>platzH&&items.length>3){
-    // Trennstelle nahe der Mitte, bevorzugt an einem Tour-Anfang
-    let acc=0,best=1,bestWert=1e9;
-    for(let k=1;k<items.length;k++){acc+=items[k-1].h;const w=Math.abs(acc-summe/2)-(items[k].art==="kopf"?1.5:0);if(w<bestWert&&items[k].art!=="luecke"){bestWert=w;best=k}}
-    spalten=[items.slice(0,best),items.slice(best).filter((x,k)=>!(k===0&&x.art==="luecke"))];
-  }
-  const maxU=Math.max(...spalten.map(sp=>sp.reduce((a,x)=>a+x.h,0)),1);
-  const zh=Math.min(66,platzH/maxU), fs=Math.round(zh*.62);
-  const panelH=maxU*zh+48, panelY=H-fussH-30-panelH;
-  g.fillStyle="rgba(10,3,4,.72)"; rundRect(g,P-24,panelY,W-2*(P-24),panelH,28); g.fill();
-  const sb=(W-2*P)/spalten.length;
-  g.textBaseline="top";
-  spalten.forEach((sp,si)=>{let yy=panelY+24; const x=P+si*sb, maxB=sb-(spalten.length>1?24:0);
-    sp.forEach(it=>{
-      if(it.art==="kopf"){g.font=`700 ${Math.round(fs*.85)}px Outfit, sans-serif`;g.fillStyle=IG_ROT;passend(g,it.t,x,yy,maxB)}
-      else if(it.art==="halt"){g.font=`700 ${fs}px Outfit, sans-serif`;g.fillStyle="#fff";g.fillText(it.zeit,x,yy);
-        const zx=it.zeit?fs*3.25:0;g.font=`400 ${fs}px Outfit, sans-serif`;passend(g,it.ort,x+zx,yy,maxB-zx)}
-      else if(it.art==="hinweis"){g.font=`400 ${Math.round(fs*.78)}px Outfit, sans-serif`;g.fillStyle="rgba(255,255,255,.75)";passend(g,it.t,x,yy,maxB)}
-      yy+=it.h*zh;});});
-  if(!touren.length){g.font="400 40px Outfit, sans-serif";g.fillStyle="#fff";g.fillText("Kein Termin gewählt",P,panelY+30)}
+  // Tour-Karten
+  const touren=igTouren(), fussH=100, oben=kopfH+20, unten=H-fussH-24, gap=22;
+  const reihen=touren.map(t=>Math.ceil(t.stops.length/2)||1);
+  const fix=touren.reduce((a,t)=>a+76+(t.hinweis?44:0)+24,0)+gap*Math.max(0,touren.length-1);
+  const gesamtReihen=reihen.reduce((a,b)=>a+b,0)||1;
+  const rh=Math.max(40,Math.min(64,(unten-oben-fix)/gesamtReihen));
+  const fs=Math.round(rh*.56);
+  const hoehe=fix+gesamtReihen*rh;
+  let cy=Math.max(oben,unten-hoehe);
+  touren.forEach((t,ti)=>{
+    const farbe=IG_TOURFARBEN[ti%IG_TOURFARBEN.length], ch=76+reihen[ti]*rh+(t.hinweis?44:0)+24, cw=W-2*(P-8), cx=P-8;
+    g.fillStyle="rgba(255,255,255,.94)"; rundRect(g,cx,cy,cw,ch,26); g.fill();
+    g.save(); rundRect(g,cx,cy,cw,ch,26); g.clip(); g.fillStyle=farbe; g.fillRect(cx,cy,9,ch); g.restore();
+    g.font="700 38px Outfit, sans-serif"; g.fillStyle=farbe; passend(g,`${t.nr} · ${t.name}`,cx+34,cy+24,cw-60);
+    const spB=(cw-68)/2;
+    t.stops.forEach((st,i)=>{const sp=i<reihen[ti]?0:1, zr=i%reihen[ti], x0=cx+34+sp*spB, y0=cy+76+zr*rh;
+      g.font=`700 ${Math.round(fs*.82)}px Outfit, sans-serif`; const zt=st[0]||"–", bw=Math.max(g.measureText("00:00").width,g.measureText(zt).width)+30, bh=rh*.78;
+      g.fillStyle=farbe; rundRect(g,x0,y0,bw,bh,10); g.fill(); g.fillStyle="#fff"; g.textAlign="center"; g.textBaseline="middle"; g.fillText(zt,x0+bw/2,y0+bh/2+1);
+      g.textAlign="left"; g.font=`700 ${fs}px Outfit, sans-serif`; g.fillStyle="#2a2522"; passend(g,st[1],x0+bw+18,y0+bh/2+1,spB-bw-30); g.textBaseline="top";});
+    if(t.hinweis){g.font="500 30px Outfit, sans-serif";g.fillStyle="#6b6461";passend(g,t.hinweis,cx+34,cy+76+reihen[ti]*rh+6,cw-60)}
+    cy+=ch+gap;});
+  if(!touren.length){g.font="500 42px Outfit, sans-serif";g.fillStyle="#fff";g.fillText("Kein Termin gewählt",P,oben+30)}
   // Fußzeile
-  g.fillStyle="rgba(0,0,0,.55)"; g.fillRect(0,H-fussH,W,fussH);
-  g.font="600 34px Outfit, sans-serif"; g.fillStyle="#fff"; g.textBaseline="middle"; g.fillText("Geflügelverkauf Holle · @gefluegelholle",P,H-fussH/2);
+  const fg=g.createLinearGradient(0,H-fussH-40,0,H); fg.addColorStop(0,"rgba(0,0,0,0)"); fg.addColorStop(1,"rgba(0,0,0,.55)");
+  g.fillStyle=fg; g.fillRect(0,H-fussH-40,W,fussH+40);
+  g.font="700 36px Outfit, sans-serif"; g.fillStyle="#fff"; g.textBaseline="middle"; g.textAlign="center"; g.fillText("Geflügelverkauf Holle · @gefluegelholle",W/2,H-fussH/2); g.textAlign="left";
   igCaption(touren);
 }
 function passend(g,text,x,y,maxB){ // Text bei Bedarf schmaler schreiben, damit er in die Spalte passt
