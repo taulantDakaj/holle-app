@@ -2070,8 +2070,12 @@ function renderGutscheine(){
 
 /* ---------- Listen als PDF speichern / teilen ---------- */
 async function listeAlsPdf(paperSel,name,btn){
-  var paper=$(paperSel); var sheets=paper?[...paper.querySelectorAll(".sheet")]:[];
-  if(!sheets.length||paper.querySelector(".sheet .none")&&sheets.length===1){toast("Keine Liste zum Speichern.");return}
+  var paper=$(paperSel); if(!paper||!paper.querySelector(".sheet table")){toast("Keine Liste zum Speichern.");return}
+  // Einheiten = einzelne Seiten (.page) bzw. Listen (.sheet); leere Seiten weglassen
+  var sheets=[];
+  paper.querySelectorAll(".sheet").forEach(function(sh){var pg=[...sh.querySelectorAll(":scope > .page, :scope > section")];
+    if(pg.length) pg.forEach(function(p){if(p.querySelector("table")){var w=document.createElement("div");w.className=sh.className;w.appendChild(p.cloneNode(true));sheets.push(w)}});
+    else sheets.push(sh)});
   var alt=btn.textContent; btn.disabled=true; btn.textContent="PDF wird erstellt …";
   try{
     var [{jsPDF},h2c]=await Promise.all([import("jspdf"),import("html2canvas-pro")]); var html2canvas=h2c.default;
@@ -2081,6 +2085,7 @@ async function listeAlsPdf(paperSel,name,btn){
     document.body.appendChild(box);
     for(var sh of sheets){
       var c=sh.cloneNode(true); box.innerHTML=""; box.appendChild(c);
+      c.querySelectorAll("input:not([type=checkbox])").forEach(function(i){var s=document.createElement("span");s.textContent=i.value||"";i.replaceWith(s)});
       c.querySelectorAll("input[type=checkbox]").forEach(function(i){var s=document.createElement("span");s.textContent="☐";s.style.fontSize="16px";i.replaceWith(s)});
       await new Promise(function(r){requestAnimationFrame(r)});
       var top=c.getBoundingClientRect().top;
