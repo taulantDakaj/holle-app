@@ -171,6 +171,7 @@
       <button type="button" data-seg="bewert" aria-pressed="false">Google-Bewertung <span class="n" id="bw-n" hidden>0</span></button>
       <button type="button" data-seg="news" aria-pressed="false">App-News</button>
       <button type="button" data-seg="insta" aria-pressed="false">Instagram-Post</button>
+      <button type="button" data-seg="gewinn" aria-pressed="false">Gewinnspiel <span class="n" id="gw-n" hidden>0</span></button>
     </div>
     <div id="seg-tour">
     <div class="filters">
@@ -226,6 +227,34 @@
       <p class="hint" style="margin-top:0">Wechselt jeden Montag automatisch. Diese Woche: <b id="sp-jetzt">…</b></p>
       <details><summary class="sub" style="cursor:pointer">Alle Sprüche ansehen und ändern</summary><div id="sp-list" style="margin-top:8px"></div>
         <div class="actions" style="margin-top:8px"><input id="sp-neu" placeholder="Neuer Spruch …" style="flex:1"><button class="btn ghost" type="button" id="sp-add">Hinzufügen</button></div></details>
+    </div>
+    <div id="seg-gewinn" hidden>
+      <p class="hint" style="margin-top:0">Teilnehmer vom Instagram-Gewinnspiel sammeln und fair auslosen. <b>1 Los</b> für Kommentar mit Markierung, <b>+1 Extra-Los</b> fürs Teilen in der Story (mit Markierung von @gefluegelholle). Wer nur teilt, aber nicht kommentiert, hat noch kein Los. Tipp: jeden Abend die Story-Erwähnungen in den Instagram-Nachrichten durchgehen und hier eintragen.</p>
+      <div class="grid">
+        <label>Instagram-Name<input id="gw-name" placeholder="@name" autocapitalize="none" autocomplete="off"></label>
+        <label>Hat markiert<input id="gw-mark" placeholder="@freundin (optional)" autocapitalize="none" autocomplete="off"></label>
+      </div>
+      <div class="chips" style="margin:8px 0;display:flex;gap:14px;flex-wrap:wrap">
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="gw-kom" checked> Kommentar mit Markierung</label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="gw-story"> In Story geteilt</label>
+      </div>
+      <div class="actions"><button class="btn" type="button" id="gw-add">Eintragen</button></div>
+      <details style="margin-top:10px"><summary class="sub">Viele auf einmal eintragen (z. B. alle Story-Erwähnungen von heute)</summary>
+        <textarea id="gw-viele" rows="5" placeholder="@name1&#10;@name2&#10;@name3"></textarea>
+        <div class="chips" style="margin:6px 0;display:flex;gap:14px;flex-wrap:wrap">
+          <label style="flex-direction:row;align-items:center;gap:6px"><input type="radio" name="gw-art" value="story" checked> haben in der Story geteilt</label>
+          <label style="flex-direction:row;align-items:center;gap:6px"><input type="radio" name="gw-art" value="kom"> haben kommentiert</label>
+        </div>
+        <button class="btn ghost" type="button" id="gw-viele-go">Alle eintragen</button>
+      </details>
+      <div class="section-h">Teilnehmer</div>
+      <div id="gw-info" class="sub"></div>
+      <input id="gw-such" placeholder="Suchen …" style="margin:8px 0">
+      <div id="gw-list"></div>
+      <div class="section-h">Auslosung</div>
+      <p class="sub">Zieht zufällig – wer mehr Lose hat, hat eine höhere Chance. Jede Auslosung wird mit Uhrzeit gespeichert.</p>
+      <div class="actions"><button class="btn primary" type="button" id="gw-los">🎲 Gewinner auslosen</button></div>
+      <div id="gw-ergebnis" style="margin-top:10px"></div>
     </div>
     <div id="seg-insta" hidden>
       <div class="filters">

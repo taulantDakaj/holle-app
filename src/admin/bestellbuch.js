@@ -1253,7 +1253,7 @@ $("#fi-save").onclick=async()=>{
 
 /* ---------- Nachrichten: Bereiche ---------- */
 var nachSeg="tour";
-function setSeg(s){nachSeg=s;["tour","warte","gutschein","rund","bewert","news","insta"].forEach(x=>{$("#seg-"+x).hidden=x!==s});if(s==="insta")igStart();if(s==="news")newsLaden();
+function setSeg(s){nachSeg=s;["tour","warte","gutschein","rund","bewert","news","insta","gewinn"].forEach(x=>{const e=$("#seg-"+x);if(e)e.hidden=x!==s});if(s==="insta")igStart();if(s==="news")newsLaden();
   document.querySelectorAll("#nach-seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.seg===s));
   if(s==="warte") ladeWarteliste(); renderNachrichten();}
 document.querySelectorAll("#nach-seg button").forEach(b=>b.onclick=()=>setSeg(b.dataset.seg));
@@ -2270,3 +2270,71 @@ async function giroCodeTeilen(g,btn){
   }catch(e){toast("GiroCode fehlgeschlagen: "+(e.message||e))}
   btn.disabled=false;btn.textContent=alt;
 }
+
+/* ---------- Gewinnspiel-Liste (Instagram) ---------- */
+var gewinn=[];
+const gwKey=n=>String(n||"").trim().toLowerCase().replace(/^@+/,"").replace(/[^a-z0-9._]/g,"");
+// Teilnahme = Kommentar mit Markierung; Story-Teilen gibt nur zusätzlich ein Extra-Los
+const gwLose=t=>t.kommentar?1+(t.story?1:0):0;
+window.__holle.db.collection("gewinnspiel").onSnapshot(s=>{gewinn=s.docs.map(d=>({id:d.id,...d.data()}));renderGewinn()},()=>{});
+async function gwSpeichern(name,patch){
+  const id=gwKey(name); if(!id) return false;
+  const alt=gewinn.find(x=>x.id===id)||{}, jetzt=new Date().toISOString();
+  const neu={name:"@"+id,markiert:alt.markiert||"",kommentar:!!alt.kommentar,story:!!alt.story,created:alt.created||jetzt,...patch,updated:jetzt};
+  if(alt.kommentar) neu.kommentar=true; if(alt.story) neu.story=true; // Häkchen nie aus Versehen entfernen
+  if(patch.markiert==="") neu.markiert=alt.markiert||"";
+  await window.__holle.db.doc("gewinnspiel/"+id).set(neu);
+  const i=gewinn.findIndex(x=>x.id===id); if(i>=0) gewinn[i]={id,...neu}; else gewinn.push({id,...neu});
+  return true;
+}
+function renderGewinn(){
+  const box=$("#gw-list"); if(!box) return;
+  const ts=gewinn.filter(t=>t.id!=="_auslosung");
+  const lose=ts.reduce((a,t)=>a+gwLose(t),0);
+  badge("#gw-n",0);
+  $("#gw-info").textContent=`${ts.length} Teilnehmer · ${lose} Lose · ${ts.filter(t=>t.story).length}× in der Story geteilt`;
+  const q=gwKey($("#gw-such").value);
+  const ls=ts.filter(t=>!q||t.id.includes(q)||gwKey(t.markiert).includes(q)).sort((a,b)=>gwLose(b)-gwLose(a)||a.id.localeCompare(b.id));
+  box.innerHTML=ls.length?ls.map(t=>`<div class="kitem"><div class="kl"><b>${esc(t.name)}</b>${t.markiert?` <span class="sub">→ ${esc(t.markiert)}</span>`:""}
+      <div class="sub">${t.kommentar?"💬 Kommentar":"<s>Kommentar</s>"} · ${t.story?"📲 Story":"keine Story"} · <b>${gwLose(t)} ${gwLose(t)===1?"Los":"Lose"}</b>${!t.kommentar?" (Kommentar fehlt)":""}${t.gewonnen?" · 🏆 gezogen":""}</div></div>
+      <div class="kr"><button class="btn ghost" type="button" data-gwk="${esc(t.id)}">${t.kommentar?"− Kommentar":"+ Kommentar"}</button><button class="btn ghost" type="button" data-gws="${esc(t.id)}">${t.story?"− Story":"+ Story"}</button><button class="btn ghost" type="button" data-gwdel="${esc(t.id)}">✕</button></div></div>`).join(""):`<p class="empty">Noch keine Teilnehmer.</p>`;
+  const set=async(id,f)=>{const t=gewinn.find(x=>x.id===id);if(!t)return;const {id:_i,...d}=t;await window.__holle.db.doc("gewinnspiel/"+id).set({...d,[f]:!t[f],updated:new Date().toISOString()});t[f]=!t[f];renderGewinn()};
+  box.querySelectorAll("[data-gwk]").forEach(b=>b.onclick=()=>set(b.dataset.gwk,"kommentar"));
+  box.querySelectorAll("[data-gws]").forEach(b=>b.onclick=()=>set(b.dataset.gws,"story"));
+  box.querySelectorAll("[data-gwdel]").forEach(b=>b.onclick=async()=>{if(!confirm(`${b.dataset.gwdel} aus der Liste löschen?`))return;await window.__holle.db.doc("gewinnspiel/"+b.dataset.gwdel).delete();gewinn=gewinn.filter(x=>x.id!==b.dataset.gwdel);renderGewinn()});
+  const a=gewinn.find(x=>x.id==="_auslosung");
+  $("#gw-ergebnis").innerHTML=a&&a.ziehungen&&a.ziehungen.length?a.ziehungen.map((z,i)=>`<div class="card" style="padding:10px;margin:6px 0">${i===a.ziehungen.length-1?"🏆 <b>Aktuell gezogen:</b>":"Frühere Ziehung:"} <b>${esc(z.name)}</b>${z.markiert?` + markiert: <b>${esc(z.markiert)}</b>`:""}<div class="sub">${new Date(z.am).toLocaleString("de-DE")} · ${z.lose} von ${z.gesamt} Losen · ${z.teilnehmer} Teilnehmer</div></div>`).join("")+
+    `<p class="sub">Meldet sich der Gewinner nicht innerhalb von 7 Tagen, einfach nochmal auslosen – bereits Gezogene werden dabei übersprungen.</p>`:"";
+}
+(function(){
+  if(!$("#gw-add")) return;
+  $("#gw-such").addEventListener("input",renderGewinn);
+  $("#gw-add").onclick=async()=>{
+    const n=$("#gw-name").value; if(!gwKey(n)){toast("Bitte Instagram-Namen eingeben.");return}
+    const m=$("#gw-mark").value.trim(); 
+    await gwSpeichern(n,{kommentar:$("#gw-kom").checked,story:$("#gw-story").checked,markiert:m?(m.startsWith("@")?m:"@"+m):""});
+    toast("Eingetragen: @"+gwKey(n)); $("#gw-name").value="";$("#gw-mark").value="";$("#gw-name").focus(); renderGewinn();
+  };
+  $("#gw-viele-go").onclick=async()=>{
+    const namen=[...new Set($("#gw-viele").value.split(/[\s,;]+/).map(gwKey).filter(Boolean))];
+    if(!namen.length){toast("Keine Namen gefunden.");return}
+    const art=document.querySelector('input[name="gw-art"]:checked').value;
+    for(const n of namen) await gwSpeichern(n,art==="story"?{story:true}:{kommentar:true});
+    $("#gw-viele").value=""; toast(namen.length+" eingetragen"); renderGewinn();
+  };
+  $("#gw-los").onclick=async()=>{
+    const a=gewinn.find(x=>x.id==="_auslosung")||{ziehungen:[]};
+    const schon=new Set((a.ziehungen||[]).map(z=>gwKey(z.name)));
+    const pool=gewinn.filter(t=>t.id!=="_auslosung"&&gwLose(t)>0&&!schon.has(t.id));
+    const gesamt=pool.reduce((s,t)=>s+gwLose(t),0);
+    if(!gesamt){toast("Keine (weiteren) Teilnehmer mit Losen.");return}
+    if(!confirm(`Jetzt aus ${pool.length} Teilnehmern (${gesamt} Lose) auslosen?`))return;
+    const r=new Uint32Array(1); crypto.getRandomValues(r); let x=r[0]%gesamt, w=pool[0];
+    for(const t of pool){ if(x<gwLose(t)){w=t;break} x-=gwLose(t); }
+    const z={name:w.name,markiert:w.markiert||"",lose:gwLose(w),gesamt,teilnehmer:pool.length,am:new Date().toISOString()};
+    const neu={ziehungen:[...(a.ziehungen||[]),z],updated:z.am};
+    await window.__holle.db.doc("gewinnspiel/_auslosung").set(neu);
+    const i=gewinn.findIndex(t=>t.id==="_auslosung"); if(i>=0) gewinn[i]={id:"_auslosung",...neu}; else gewinn.push({id:"_auslosung",...neu});
+    renderGewinn(); toast("🏆 Gezogen: "+w.name);
+  };
+})();
