@@ -2296,7 +2296,7 @@ function renderGewinn(){
   const q=gwKey($("#gw-such").value);
   const ls=ts.filter(t=>!q||t.id.includes(q)||gwKey(t.markiert).includes(q)).sort((a,b)=>gwLose(b)-gwLose(a)||a.id.localeCompare(b.id));
   box.innerHTML=ls.length?ls.map(t=>`<div class="kitem"><div class="kl"><b>${esc(t.name)}</b>${t.markiert?` <span class="sub">→ ${esc(t.markiert)}</span>`:""}
-      <div class="sub">${t.kommentar?"💬 Kommentar":"<s>Kommentar</s>"} · ${t.story?"📲 Story":"keine Story"} · <b>${gwLose(t)} ${gwLose(t)===1?"Los":"Lose"}</b>${!t.kommentar?" (Kommentar fehlt)":""}${t.gewonnen?" · 🏆 gezogen":""}</div></div>
+      <div class="sub">${t.kommentar?"💬 Kommentar":"<s>Kommentar</s>"} · ${t.story?"📲 Story":"keine Story"} · <b>${gwLose(t)} ${gwLose(t)===1?"Los":"Lose"}</b>${!t.kommentar?" (Kommentar fehlt)":""}${t.gewonnen?" · 🏆 gezogen":""}</div>${t.notiz?`<div class="sub">⚠️ ${esc(t.notiz)}</div>`:""}</div>
       <div class="kr"><button class="btn ghost" type="button" data-gwk="${esc(t.id)}">${t.kommentar?"− Kommentar":"+ Kommentar"}</button><button class="btn ghost" type="button" data-gws="${esc(t.id)}">${t.story?"− Story":"+ Story"}</button><button class="btn ghost" type="button" data-gwdel="${esc(t.id)}">✕</button></div></div>`).join(""):`<p class="empty">Noch keine Teilnehmer.</p>`;
   const set=async(id,f)=>{const t=gewinn.find(x=>x.id===id);if(!t)return;const {id:_i,...d}=t;await window.__holle.db.doc("gewinnspiel/"+id).set({...d,[f]:!t[f],updated:new Date().toISOString()});t[f]=!t[f];renderGewinn()};
   box.querySelectorAll("[data-gwk]").forEach(b=>b.onclick=()=>set(b.dataset.gwk,"kommentar"));
