@@ -2067,3 +2067,54 @@ function renderGutscheine(){
   box.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const st=b.dataset.st;if(st==="storniert"&&!confirm("Gutschein-Bestellung stornieren?"))return;gsSetze(b.dataset.gs,{status:st,["am_"+st]:new Date().toISOString()})});
   box.querySelectorAll("[data-gswa]").forEach(a=>a.addEventListener("click",()=>{if(a.dataset.st)gsSetze(a.dataset.gswa,{status:a.dataset.st,am_bestaetigt:new Date().toISOString()})}));
 }
+
+/* ---------- Listen als PDF speichern / teilen ---------- */
+async function listeAlsPdf(paperSel,name,btn){
+  var paper=$(paperSel); var sheets=paper?[...paper.querySelectorAll(".sheet")]:[];
+  if(!sheets.length||paper.querySelector(".sheet .none")&&sheets.length===1){toast("Keine Liste zum Speichern.");return}
+  var alt=btn.textContent; btn.disabled=true; btn.textContent="PDF wird erstellt …";
+  try{
+    var [{jsPDF},h2c]=await Promise.all([import("jspdf"),import("html2canvas-pro")]); var html2canvas=h2c.default;
+    var pdf=new jsPDF({unit:"mm",format:"a4"}), PW=210, PH=297, M=10, W=PW-2*M, H=PH-2*M, erste=true;
+    // feste Breite wie auf Papier, damit Schrift nicht winzig wird
+    var box=document.createElement("div"); box.style.cssText="position:fixed;left:-10000px;top:0;width:780px;background:#fff";
+    document.body.appendChild(box);
+    for(var sh of sheets){
+      var c=sh.cloneNode(true); box.innerHTML=""; box.appendChild(c);
+      c.querySelectorAll("input[type=checkbox]").forEach(function(i){var s=document.createElement("span");s.textContent="☐";s.style.fontSize="16px";i.replaceWith(s)});
+      await new Promise(function(r){requestAnimationFrame(r)});
+      var top=c.getBoundingClientRect().top;
+      // mögliche Seitenumbrüche: Ende von Zeilen, Haltepunkten, Überschriften
+      var br=[...c.querySelectorAll("tr,.stop,h1,h2,h3,.head,.foot,table,p,li")].map(function(e){return e.getBoundingClientRect().bottom-top}).filter(function(y){return y>0}).sort(function(a,b){return a-b});
+      var canvas=await html2canvas(c,{scale:2,backgroundColor:"#fff",windowWidth:780});
+      var k=canvas.width/c.offsetWidth; // Canvas-Pixel je CSS-Pixel
+      var pxProMm=c.offsetWidth/W, seiteCss=H*pxProMm, y=0, gesamt=c.offsetHeight;
+      while(y<gesamt-2){
+        var ende=Math.min(gesamt,y+seiteCss);
+        if(ende<gesamt){var kand=br.filter(function(b){return b>y+seiteCss*0.5&&b<=y+seiteCss}); if(kand.length) ende=kand[kand.length-1];}
+        var hCss=ende-y, part=document.createElement("canvas"); part.width=canvas.width; part.height=Math.ceil(hCss*k);
+        var ctx=part.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,part.width,part.height);
+        ctx.drawImage(canvas,0,Math.floor(y*k),canvas.width,part.height,0,0,canvas.width,part.height);
+        if(!erste) pdf.addPage(); erste=false;
+        pdf.addImage(part.toDataURL("image/jpeg",0.9),"JPEG",M,M,W,hCss/pxProMm);
+        y=ende;
+      }
+    }
+    box.remove();
+    var datei=(name+".pdf").replace(/[^\wäöüÄÖÜß.\-]+/g,"_");
+    var blob=pdf.output("blob"), file=new File([blob],datei,{type:"application/pdf"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:name});}catch(e){if(e&&e.name!=="AbortError")throw e}
+    }else{
+      var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=datei; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){URL.revokeObjectURL(a.href)},5000); toast("PDF gespeichert: "+datei);
+    }
+  }catch(e){toast("PDF fehlgeschlagen: "+(e.message||e))}
+  btn.disabled=false; btn.textContent=alt;
+}
+(function(){
+  var b;
+  if(b=$("#o-pdf")) b.onclick=function(){listeAlsPdf("#o-paper","Bestellliste_"+($("#o-von").value||"alle")+"_bis_"+($("#o-bis").value||"offen"),this)};
+  if(b=$("#f2-pdf")) b.onclick=function(){var d=$("#f2-datum")?$("#f2-datum").value:"";listeAlsPdf("#f2-paper","Fahrplan_"+d,this)};
+  if(b=$("#l-pdf")) b.onclick=function(){var d=$("#p-datum").value,t=$("#p-tour").value,tr=t?tourById(t):null;listeAlsPdf("#paper","Ladeliste_"+d+(tr?"_"+tr.nr.replace(/\s/g,""):""),this)};
+})();
