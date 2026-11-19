@@ -263,7 +263,7 @@ export default function Shop() {
 
           <section className="card info">
             <ul>
-              <li>Bezahlung bei Abholung: bar, PayPal oder Überweisung.</li>
+              <li>Bezahlung bei Abholung: bar oder PayPal.</li>
               <li>Bestellte Tiere bitte abholen. Falls etwas dazwischenkommt, mindestens 24–36 Stunden vorher absagen.</li>
               <li>Fragen? Ruf an oder schreib per WhatsApp: <a href={`tel:${SHOP_PHONE.replace(/\s/g, '')}`}>{SHOP_PHONE}</a></li>
             </ul>

@@ -84,8 +84,8 @@ export function confirmText(o) {
   return (
     `Hallo ${o.customer_name.split(' ')[0]}, deine Bestellung ${o.order_no} bei Geflügelverkauf Holle ist bestätigt:\n` +
     (o.order_items || []).map((i) => `• ${i.qty}× ${i.product_name}`).join('\n') +
-    `\n\nAbholung: ${pickupText(o, true)}\n` +
-    `Bezahlung bei Abholung (bar, PayPal oder Überweisung).\n` +
+    `\n\nAbholung: ${pickupText(o, true)}\n\n` +
+    `Bezahlung bei Abholung (bar oder PayPal).\n` +
     `Falls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.\n\nViele Grüße\nGeflügelverkauf Holle`
   );
 }

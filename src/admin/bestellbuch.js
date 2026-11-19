@@ -32,7 +32,7 @@ var TEXTE={
   bar:"Bar",ueberw:"Überw.",offen:"offen",fertig:"✓ fertig",navi:"Navi",confirmNd:"{k} ist nicht gekommen – kein Verkauf?\nDie Tiere gehen zurück in den Bestand.",
   stAn:"📍 Standort wird geteilt – Taulant sieht, an welchem Haltepunkt du bist (nur solange diese Seite offen ist).",aus:"Ausschalten",stAus:"📍 Standort ist aus.",teilen:"Standort teilen",
   schliessen:"Schließen",tag:"Tag",tour:"Tour",sprache:"Sprache",tabFahrer:"Fahrer",abmelden:"Abmelden",
-  hint:"Haltepunkte in Fahr-Reihenfolge. „Navi“ öffnet Google Maps. Bezahlt: Bar, PayPal oder Überweisung antippen. „Nicht da“ = Kunde nicht gekommen, kein Verkauf. Das blaue „i“ zeigt Bild und Beschreibung der Tierart."},
+  hint:"Haltepunkte in Fahr-Reihenfolge. „Navi“ öffnet Google Maps. Bezahlt: Bar oder PayPal antippen. „Nicht da“ = Kunde nicht gekommen, kein Verkauf. Das blaue „i“ zeigt Bild und Beschreibung der Tierart."},
  en:{kassieren:"Collect payment",betrag:"Amount",nichtDaLang:"Not here – no sale",heute:"today",keineTouren:"No tours",kunden:"Customers",tiere:"Animals",summe:"Total",kassiert:"collected",nichtErsch:"no-show",
   erledigt:"{a} of {b} customers done · {p} %",keine:"No orders.",rueck:"Undo",quittung:"Receipt",anrufen:"📞 Call",nichtDa:"Not here",
   bar:"Cash",ueberw:"Transfer",offen:"open",fertig:"✓ done",navi:"Navigate",confirmNd:"{k} did not come – no sale?\nThe animals go back into stock.",
@@ -739,8 +739,9 @@ function bestaetigungText(o){
   const gesamt=summe?`${rb?`\n\nZwischensumme: ${eur(brutto(o))}\n${rabattText(o)}: − ${eur(rb)}`:"\n"}\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Wochenpreis/Preis folgt":""}`:"";
   return `Hallo ${vn}, deine Bestellung bei Geflügelverkauf Holle ist bestätigt:\n`+
     pos.map(zeile).join("\n")+gesamt+
-    `\n\nAbholung: ${abholText(o)}\nBezahlung bei Abholung (bar, PayPal oder Überweisung).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.`+
-    (orderLink(o)?`\nDeine Bestellung ansehen oder absagen: ${orderLink(o)}`:"")+`\n\n${SHOP_WA_TEXT_GRUSS}`;
+    `\n\n*Abholung:* ${abholText(o)}`+
+    `\n\nBezahlung bei Abholung (bar oder PayPal).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.`+
+    (orderLink(o)?`\n\nDeine Bestellung ansehen oder absagen:\n${orderLink(o)}`:"")+`\n\n${SHOP_WA_TEXT_GRUSS}`;
 }
 const waLinkOrder=o=>`https://wa.me/${waNum(o.telefon)}?text=${encodeURIComponent(bestaetigungText(o))}`;
 async function bestaetige(id){
@@ -1191,8 +1192,8 @@ function erinnerungText(o){
     `${heute?"Heute ist es so weit":morgen?"Morgen ist es so weit":"Bald ist es so weit"} – Abholung: ${abholText(o)}\n\n`+
     `Deine Bestellung:\n`+pos.map(p=>`• ${p.anzahl} × ${p.tier}`).join("\n")+
     (summe?`\nGesamt: ${eur(summe)}`:"")+
-    `\n\nBezahlung vor Ort bar, PayPal oder Überweisung. Falls du nicht kommen kannst, gib bitte kurz Bescheid`+
-    (orderLink(o)?` oder sag hier ab: ${orderLink(o)}`:".")+`\nBis dann!`;
+    `\n\nBezahlung vor Ort bar oder PayPal.\nFalls du nicht kommen kannst, gib bitte kurz Bescheid`+
+    (orderLink(o)?` oder sag hier ab:\n${orderLink(o)}`:".")+`\n\nBis dann!`;
 }
 function renderErinnern(){
   const dSel=$("#er-datum"); if(!dSel) return;
