@@ -436,7 +436,8 @@ export function MeineBestellung({ id }) {
     if (error) setMsg(error.message); else { setFrage(false); laden(); }
   }
   const t = o && TOURS.find((x) => x.id === o.tour);
-  const st = t && t.stops.find((s) => s[1] === o.ort);
+  const st0 = t && t.stops.find((s) => s[1] === o.ort);
+  const st = st0 && o.zeit ? [o.zeit, st0[1], st0[2]] : st0;
   const pos = (o?.positionen || []).filter((p) => p.tier && +p.anzahl);
   const brutto = pos.reduce((a, p) => a + (+p.anzahl || 0) * (+p.preis || 0), 0);
   const rb = o?.rabatt && +o.rabatt.wert > 0 && brutto ? Math.min(brutto, o.rabatt.art === 'prozent' ? Math.round(brutto * o.rabatt.wert) / 100 : +o.rabatt.wert) : 0;

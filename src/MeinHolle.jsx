@@ -152,7 +152,7 @@ export default function MeinHolle({ token }) {
                   const st = t && t.stops.find((s) => s[1] === o.ort);
                   return (
                     <a key={o.id} className="offen" href={`./#/b/${o.id}`}>
-                      <b>{fmtDate(o.datum)}{st && st[0] ? `, ${st[0]} Uhr` : ''}</b>
+                      <b>{fmtDate(o.datum)}{o.zeit ? `, ${o.zeit} Uhr` : st && st[0] ? `, ${st[0]} Uhr` : ''}</b>
                       <span>{o.tour === 'R' ? 'Rietberg' : o.ort}</span>
                       <span className="sub">{(o.positionen || []).filter((p) => p.tier && +p.anzahl).map((p) => `${p.anzahl} × ${p.tier}`).join(', ')}</span>
                     </a>

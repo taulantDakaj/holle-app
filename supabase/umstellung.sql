@@ -1156,3 +1156,11 @@ language sql stable security definer set search_path = public as $$
   from pt, zeilen, monate, ein;
 $$;
 grant execute on function partner_uebersicht(text) to anon, authenticated;
+
+-- Sonderzeiten auch auf der Kundenseite (Bestellseite + Mein Holle)
+create or replace function fahrt_zeit(p_datum text, p_tour text, p_ort text) returns text
+language sql stable security definer set search_path = public as $$
+  select nullif(f.zeiten->>p_ort, '') from fahrten f
+  where f.datum = nullif(p_datum,'')::date and f.tour = p_tour and f.aktiv limit 1;
+$$;
+-- get_my_order / get_mein_holle liefern zusätzlich 'zeit' (siehe Live-Migration kundenseite_sonderzeiten)
