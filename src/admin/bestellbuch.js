@@ -737,6 +737,17 @@ function abholText(o){
   const wo=[h.laden,navi(h)].filter(Boolean).join(", ");
   return `${dLong(o.datum)}${st&&st[0]?", "+st[0]+" Uhr":""} in ${o.ort}${wo?" ("+wo+")":""}.`;
 }
+// Abholung übersichtlich in drei Zeilen: Datum / Uhrzeit / Ort
+function abholBlock(o){
+  const t=o.tour==="R"?null:tourAm(o.tour,o.datum), st=t?t.stops.find(s=>s[1]===o.ort):null;
+  const m=String(o.bemerkung||"").match(/(\d{1,2}(?:[:.]\d{2})?(?:\s*(?:–|-|bis)\s*\d{1,2}(?:[:.]\d{2})?)?)\s*Uhr/i);
+  const zeit=st&&st[0]?st[0]+" Uhr":m?m[1].replace(/\s*-\s*/,"–")+" Uhr":(o.tour==="R"?"sprechen wir noch kurz ab":"");
+  let ort;
+  if(o.ort===HOME) ort=`Lieferung zu dir${o.adresse?": "+o.adresse:""}`;
+  else{const h=halt(o.ort), name=o.ort==="Rietberg Hof"?"Rietberg, Hof Holle":o.ort==="Rietberg zuhause"?"Rietberg":o.ort;
+    const wo=[o.ort==="Rietberg Hof"?"":h.laden,navi(h)].filter(Boolean).join(", "); ort=name+(wo?` (${wo})`:"");}
+  return `📅 ${dLong(o.datum)}`+(zeit?`\n🕘 ${zeit}`:"")+`\n📍 ${ort}`;
+}
 function bestaetigungText(o){
   const vn=(o.kunde||"").split(" ")[0];
   const pos=(o.positionen||[]).filter(p=>p.tier&&+p.anzahl);
@@ -746,7 +757,7 @@ function bestaetigungText(o){
   const gesamt=summe?`${rb?`\n\nZwischensumme: ${eur(brutto(o))}\n${rabattText(o)}: − ${eur(rb)}`:"\n"}\n*Gesamtpreis: ${eur(summe)}*${ohne?" zzgl. der Tiere mit Wochenpreis/Preis folgt":""}`:"";
   return `Hallo ${vn}, deine Bestellung bei Geflügelverkauf Holle ist bestätigt:\n`+
     pos.map(zeile).join("\n")+gesamt+
-    `\n\n*Abholung:* ${abholText(o)}`+
+    `\n\n*${o.ort===HOME?"Lieferung":"Abholung"}:*\n${abholBlock(o)}`+
     `\n\nBezahlung bei Abholung (bar oder PayPal).\nFalls etwas dazwischenkommt, sag bitte mindestens 24–36 Stunden vorher Bescheid.`+
     (orderLink(o)?`\n\nDeine Bestellung ansehen oder absagen:\n${orderLink(o)}`:"")+`\n\n${SHOP_WA_TEXT_GRUSS}`;
 }
@@ -1195,9 +1206,9 @@ function erinnerungText(o){
   const vn=(o.kunde||"").split(" ")[0];
   const morgen=iso(new Date(Date.now()+864e5))===o.datum, heute=iso(new Date())===o.datum;
   const pos=(o.positionen||[]).filter(p=>p.tier&&+p.anzahl), summe=betrag(o);
-  return `Hallo ${vn}, kleine Erinnerung von Geflügelverkauf Holle 🐔\n`+
-    `${heute?"Heute ist es so weit":morgen?"Morgen ist es so weit":"Bald ist es so weit"} – Abholung: ${abholText(o)}\n\n`+
-    `Deine Bestellung:\n`+pos.map(p=>`• ${p.anzahl} × ${p.tier}`).join("\n")+
+  return `Hallo ${vn}, kleine Erinnerung von Geflügelverkauf Holle 🐔\n\n`+
+    `*${heute?"Heute ist es so weit!":morgen?"Morgen ist es so weit!":"Bald ist es so weit!"}*\n${abholBlock(o)}\n\n`+
+    `*Deine Bestellung:*\n`+pos.map(p=>`• ${p.anzahl} × ${p.tier}`).join("\n")+
     (summe?`\nGesamt: ${eur(summe)}`:"")+
     `\n\nBezahlung vor Ort bar oder PayPal.\nFalls du nicht kommen kannst, gib bitte kurz Bescheid`+
     (orderLink(o)?` oder sag hier ab:\n${orderLink(o)}`:".")+`\n\nBis dann!`;
@@ -2336,3 +2347,4 @@ function renderGewinn(){
     renderGewinn(); toast("🏆 Gezogen: "+w.name);
   };
 })();
+window.__holle.texte={erinnerungText,bestaetigungText};
